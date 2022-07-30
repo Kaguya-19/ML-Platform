@@ -294,6 +294,39 @@ class ONNXModel(BaseModel):
                     self._algorithm = 'NeuralNetwork'
         return self._algorithm
 
+    def quick_prediction(self, x_test, input_function_name):
+        if x_test is None:
+            return {}
+
+        try:
+            result = {}
+            function_name = input_function_name if input_function_name else self.mining_function(
+                None)
+            # convert to numpy array if not
+            x_test = self._to_ndarray(x_test)
+            sess = self._get_inference_session()
+            y_pred = None
+            if function_name in (FUNCTION_NAME_CLASSIFICATION, FUNCTION_NAME_REGRESSION) and len(
+                    sess.get_inputs()) == 1:
+                input_name = sess.get_inputs()[0].name
+                output = sess.run(None, {
+                                  input_name: x_test.astype(np.float32)})
+                y_pred = np.asarray(output[0])
+                shape = y_pred.shape
+                if len(shape) > 1 and shape[1] > 1:
+                    y_pred = np.argmax(y_pred, axis=1)
+                result["predicted_species"] = y_pred[0]
+                probabilities = output[1][0]
+                for i in range(len(probabilities)):
+                    result["probability_{}".format(i)] = probabilities[i]
+                return {
+                    "result": [result],
+                }
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+
     def evaluate_metrics(self, x_test, y_test, data_test, input_function_name):
         if x_test is None or y_test is None:
             return {}
@@ -380,3 +413,50 @@ class ONNXModel(BaseModel):
             self.sess = rt.InferenceSession(
                 self.onnx_model.SerializeToString())
         return self.sess
+
+
+def get_model_info(path, type):
+    if type == "onnx":
+        model = ONNXModel(path)
+    else:
+        return {
+            "stderr": "Not implemented model type."
+        }
+    response = {}
+    if model.is_support():
+        response['input'] = model.predictors(None, None)
+        response['output'] = model.outputs(None, None)
+        response['model_type'] = model.model_type()
+        response['algorithm'] = model.algorithm(
+        ) + "(" + model.mining_function(None) + ")"
+        response['engine'] = model.runtime()
+        return response
+    else:
+        return {
+            "stderr": "Not supported."
+        }
+
+
+def quick_predict(path, type, x_test):
+    if type == "onnx":
+        model = ONNXModel(path)
+    else:
+        return {
+            "stderr": "Not implemented model type."
+        }
+    if model.is_support():
+        return model.quick_prediction(x_test, None)
+    else:
+        return {
+            "stderr": "Not supported."
+        }
+
+
+if __name__ == "__main__":
+    info = get_model_info(
+        "D:\Program\Github\ML-Platform\Backend\ml\logreg_iris.onnx", "onnx")
+    print(info)
+    x_test = np.array([1.0, 2.0, 3.0, 4.0])
+    x_test = x_test.reshape(1, 4)
+    print(quick_predict(
+        "D:\Program\Github\ML-Platform\Backend\ml\logreg_iris.onnx", "onnx", x_test))

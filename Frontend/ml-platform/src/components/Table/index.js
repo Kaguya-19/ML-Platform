@@ -248,29 +248,29 @@ export default {
     },
     renderAlert () {
       // 绘制统计列数据
-      const needTotalItems = this.needTotalList.map((item) => {
-        return (<span style="margin-right: 12px">
-          {item.title}总计 <a style="font-weight: 600">{!item.customRender ? item.total : item.customRender(item.total)}</a>
-        </span>)
-      })
+      // const needTotalItems = this.needTotalList.map((item) => {
+      //   return (<span style="margin-right: 12px">
+      //     {item.title}总计 <a style="font-weight: 600">{!item.customRender ? item.total : item.customRender(item.total)}</a>
+      //   </span>)
+      // })
 
       // 绘制 清空 按钮
-      const clearItem = (typeof this.alert.clear === 'boolean' && this.alert.clear) ? (
-        this.renderClear(this.clearSelected)
-      ) : (this.alert !== null && typeof this.alert.clear === 'function') ? (
-        this.renderClear(this.alert.clear)
-      ) : null
+      // const clearItem = (typeof this.alert.clear === 'boolean' && this.alert.clear) ? (
+      //   this.renderClear(this.clearSelected)
+      // ) : (this.alert !== null && typeof this.alert.clear === 'function') ? (
+      //   this.renderClear(this.alert.clear)
+      // ) : null
 
       // 绘制 alert 组件
-      return (
-        <a-alert showIcon={true} style="margin-bottom: 16px">
-          <template slot="message">
-            <span style="margin-right: 12px">已选择: <a style="font-weight: 600">{this.selectedRows.length}</a></span>
-            {needTotalItems}
-            {clearItem}
-          </template>
-        </a-alert>
-      )
+      // return (
+      //   <a-alert showIcon={true} style="margin-bottom: 16px">
+      //     <template slot="message">
+      //       <span style="margin-right: 12px">已选择: <a style="font-weight: 600">{this.selectedRows.length}</a></span>
+      //       {needTotalItems}
+      //       {clearItem}
+      //     </template>
+      //   </a-alert>
+      // )
     }
   },
 

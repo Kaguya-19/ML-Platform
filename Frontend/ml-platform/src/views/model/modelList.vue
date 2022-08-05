@@ -38,12 +38,12 @@
 </template>
 
 <script>
-import moment from 'moment'
+// import moment from 'moment'
 import { STable, Ellipsis } from '@/components'
 import { getRoleList, getServiceList } from '@/api/manage'
 
 import StepByStepModal from './modules/StepByStepModal'
-import CreateForm from './modules/CreateForm'
+// import CreateForm from './modules/CreateForm'
 
 const columns = [
   {
@@ -73,11 +73,10 @@ const columns = [
 ]
 
 export default {
-  name: 'TableList',
+  name: 'ModelList',
   components: {
     STable,
     Ellipsis,
-    CreateForm,
     StepByStepModal
   },
   data () {
@@ -179,9 +178,9 @@ export default {
       this.advanced = !this.advanced
     },
     resetSearchForm () {
-      this.queryParam = {
-        date: moment(new Date())
-      }
+      // this.queryParam = {
+      //   date: moment(new Date())
+      // }
     }
   }
 }

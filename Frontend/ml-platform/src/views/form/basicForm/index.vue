@@ -2,6 +2,7 @@
   <!-- hidden PageHeaderWrapper title demo -->
   <page-header-wrapper :title="false" :content="$t('form.basic-form.basic.description')">
     <a-card :body-style="{padding: '24px 32px'}" :bordered="false">
+      <!-- 模型名称 -->
       <a-form @submit="handleSubmit" :form="form">
         <a-form-item
           :label="$t('form.basic-form.title.label')"
@@ -15,7 +16,7 @@
             name="name"
             :placeholder="$t('form.basic-form.title.placeholder')" />
         </a-form-item>
-        <a-form-item
+        <!-- <a-form-item
           :label="$t('form.basic-form.date.label')"
           :labelCol="{lg: {span: 7}, sm: {span: 7}}"
           :wrapperCol="{lg: {span: 10}, sm: {span: 17} }">
@@ -26,7 +27,8 @@
               'buildTime',
               {rules: [{ required: true, message: $t('form.basic-form.date.required') }]}
             ]" />
-        </a-form-item>
+        </a-form-item> -->
+        <!-- 模型描述 -->
         <a-form-item
           :label="$t('form.basic-form.goal.label')"
           :labelCol="{lg: {span: 7}, sm: {span: 7}}"
@@ -39,7 +41,20 @@
               {rules: [{ required: true, message: $t('form.basic-form.goal.required') }]}
             ]" />
         </a-form-item>
+        <!-- 模型类型 -->
         <a-form-item
+          label="Model type"
+          :labelCol="{lg: {span: 7}, sm: {span: 7}}"
+          :wrapperCol="{lg: {span: 10}, sm: {span: 17}}"
+        >
+          <a-select
+            placeholder="Please choose your model type"
+            v-decorator="['paymentUser', { rules: [{required: true, message: '付款账户必须填写'}] }]">
+            <a-select-option value="1">PMML</a-select-option>
+            <a-select-option value="2">ONNX</a-select-option>
+          </a-select>
+        </a-form-item>
+        <!-- <a-form-item
           :label="$t('form.basic-form.standard.label')"
           :labelCol="{lg: {span: 7}, sm: {span: 7}}"
           :wrapperCol="{lg: {span: 10}, sm: {span: 17} }">
@@ -98,6 +113,21 @@
               <a-select-option value="6">{{ $t('form.basic-form.option.C') }}</a-select-option>
             </a-select>
           </a-form-item>
+        </a-form-item> -->
+        <!-- 模型文件上传 -->
+        <a-form-item
+          label="Model file"
+          :labelCol="{lg: {span: 7}, sm: {span: 7}}"
+          :wrapperCol="{lg: {span: 10}, sm: {span: 17}}"
+        >
+          <a-upload name="file" :beforeUpload="beforeUpload" :showUploadList="false">
+            <a-button icon="upload">Select from local</a-button>
+          </a-upload>
+          <a-input
+            disabled="true"
+            :style="{width: 'calc(100% - 162.39px)'}"
+            v-decorator="['payType', {rules: [{required: true, message: 'Please upload your model file'}]}]"
+          />
         </a-form-item>
         <a-form-item
           :wrapperCol="{ span: 24 }"

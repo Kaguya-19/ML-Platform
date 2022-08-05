@@ -255,7 +255,8 @@ class ONNXModel(BaseModel):
             self.onnx_model = onnx_model
             return True
         except Exception:
-            return False
+            import traceback
+            traceback.print_exc()
 
     def model_type(self):
         return 'ONNX'
@@ -293,6 +294,70 @@ class ONNXModel(BaseModel):
                 if self._algorithm is None and not use_onnx_ml:
                     self._algorithm = 'NeuralNetwork'
         return self._algorithm
+
+    def quick_prediction(self, x_test, input_function_name):
+        if x_test is None:
+            return {}
+
+        try:
+            result = {}
+            function_name = input_function_name if input_function_name else self.mining_function(
+                None)
+            # convert to numpy array if not
+            x_test = self._to_ndarray(x_test)
+            sess = self._get_inference_session()
+            y_pred = None
+            if function_name in (FUNCTION_NAME_CLASSIFICATION, FUNCTION_NAME_REGRESSION) and len(
+                    sess.get_inputs()) == 1:
+                input_name = sess.get_inputs()[0].name
+                output = sess.run(None, {
+                                  input_name: x_test.astype(np.float32)})
+                sess = self._get_inference_session()
+                output_fields = sess.get_outputs()
+                for i in range(len(output_fields)):
+                    result[output_fields[i].name] = output[i][0]
+                return {
+                    "result": [result],
+                }
+            else:
+                return {}
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+
+    def batch_predict(self, x_test, input_function_name):
+        if x_test is None:
+            return {}
+
+        try:
+            result = []
+            function_name = input_function_name if input_function_name else self.mining_function(
+                None)
+            # convert to numpy array if not
+            x_test = self._to_ndarray(x_test).astype(np.float32)
+            sess = self._get_inference_session()
+            if function_name in (FUNCTION_NAME_CLASSIFICATION, FUNCTION_NAME_REGRESSION) and len(
+                    sess.get_inputs()) == 1:
+                input_name = sess.get_inputs()[0].name
+                output = [sess.run(None, {
+                    input_name: x_test[i]}) for i in range(x_test.shape[0])]
+                sess = self._get_inference_session()
+                output_fields = sess.get_outputs()
+                for i in range(len(output[0])):
+                    tmp_sample = {}
+                    for j in range(len(output_fields)):
+                        tmp_sample[output_fields[j].name] = output[i][j]
+                    result.append(tmp_sample)
+                return {
+                    "result": result,
+                }
+            else:
+                return {}
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
 
     def evaluate_metrics(self, x_test, y_test, data_test, input_function_name):
         if x_test is None or y_test is None:
@@ -380,3 +445,274 @@ class ONNXModel(BaseModel):
             self.sess = rt.InferenceSession(
                 self.onnx_model.SerializeToString())
         return self.sess
+
+
+class PMMLModel(BaseModel):
+    def __init__(self, model):
+        BaseModel.__init__(self, model)
+        self.pmml_model = None
+
+    def __del__(self):
+        if self.pmml_model:
+            try:
+                from pypmml import Model
+                Model.close()
+            except:
+                pass
+
+    def is_support(self):
+        try:
+            from pypmml import Model
+
+            model_content = self.model
+            if hasattr(self.model, 'read') and callable(self.model.read):
+                model_content = self.model.read()
+
+            if isinstance(model_content, (bytes, bytearray)):
+                model_content = model_content.decode('utf-8')
+
+            if isinstance(model_content, str):
+                # Check if a file path
+                if os.path.exists(model_content):
+                    self.pmml_model = Model.fromFile(model_content)
+                else:
+                    self.pmml_model = Model.fromString(model_content)
+                return True
+            else:
+                Model.close()
+                return False
+        except Exception as e:
+            return False
+
+    def model_type(self):
+        return 'PMML'
+
+    def model_version(self):
+        return None
+
+    def mining_function(self, y_test):
+        return self.pmml_model.functionName
+
+    def serialization(self):
+        return 'pmml'
+
+    def runtime(self):
+        return 'PyPMML'
+
+    def algorithm(self):
+        return self.pmml_model.modelElement
+
+    def quick_prediction(self, x_test, input_function_name):
+        prediction_col = self.get_prediction_col()
+        if prediction_col is None:
+            return {}
+
+        if x_test is not None:
+            try:
+                result = {}
+                y_pred = self.pmml_model.predict(x_test)
+                y_pred = pd.DataFrame(y_pred)
+                output_fields = self.pmml_model.outputFields
+                for i in range(len(output_fields)):
+                    result[output_fields[i].name] = y_pred.iat[0, i]
+                return {
+                    "result": result,
+                }
+
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+        else:
+            return {}
+
+    def batch_predict(self, x_test, input_function_name):
+        prediction_col = self.get_prediction_col()
+        if prediction_col is None:
+            return {}
+
+        if x_test is not None:
+            try:
+                result = []
+                output_fields = self.pmml_model.outputFields
+                for i in range(x_test.shape[0]):
+                    tmp = {}
+                    y_pred = self.pmml_model.predict(x_test)
+                    y_pred = pd.DataFrame(y_pred)
+                    for i in range(len(output_fields)):
+                        tmp[output_fields[i].name] = y_pred.iat[0, i]
+                    result.append(tmp)
+                return {
+                    "result": result,
+                }
+
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+        else:
+            return {}
+
+    def evaluate_metrics(self, x_test, y_test, data_test, input_function_name):
+        prediction_col = self.get_prediction_col()
+        if prediction_col is None:
+            return {}
+
+        # Convert spark df to Pandas
+        if data_test is not None:
+            try:
+                label_col = self.pmml_model.targetName
+                if not label_col:
+                    return {}
+
+                pandas_data_test = data_test.toPandas()
+                y_test = pandas_data_test[label_col]
+                x_test = pandas_data_test
+            except:
+                return {}
+
+        if x_test is not None and y_test is not None:
+            try:
+                function_name = input_function_name if input_function_name else self.mining_function(
+                    y_test)
+                if function_name == FUNCTION_NAME_CLASSIFICATION:
+                    from sklearn.metrics import accuracy_score
+                    y_pred = self.pmml_model.predict(x_test)
+                    accuracy = accuracy_score(y_test, y_pred[prediction_col])
+                    return {
+                        'accuracy': accuracy
+                    }
+                elif function_name == FUNCTION_NAME_REGRESSION:
+                    from sklearn.metrics import explained_variance_score
+                    y_pred = self.pmml_model.predict(x_test)
+                    explained_variance = explained_variance_score(
+                        y_test, y_pred[prediction_col])
+                    return {
+                        'explainedVariance': explained_variance
+                    }
+                else:
+                    return {}
+            except:
+                return {}
+        return {}
+
+    def get_prediction_col(self):
+        output_fields = self.pmml_model.outputFields
+        for x in output_fields:
+            if x.feature == 'predictedValue':
+                return x.name
+        return None
+
+    def predictors(self, x_test, data_test):
+        result = []
+
+        row = None
+        x_test = self._to_dataframe(x_test, data_test)
+        if isinstance(x_test, pd.DataFrame):
+            row = json.loads(x_test.iloc[0].to_json())
+
+        for x in self.pmml_model.inputFields:
+            result.append(({
+                'name': x.name,
+                'sample': row.get(x.name) if row is not None else None,
+                'type': x.dataType
+            }))
+        return result
+
+    def targets(self, y_test, data_test):
+        result = []
+
+        row = None
+        y_test = self._to_dataframe(y_test, data_test)
+        if isinstance(y_test, pd.DataFrame):
+            row = json.loads(y_test.iloc[0].to_json())
+
+        for x in self.pmml_model.targetFields:
+            result.append(({
+                'name': x.name,
+                'sample': row.get(x.name) if row is not None else None,
+                'type': x.dataType
+            }))
+        return result
+
+    def outputs(self, y_test, data_test, **kwargs):
+        result = []
+        for x in self.pmml_model.outputFields:
+            result.append(({
+                'name': x.name,
+                'type': x.dataType
+            }))
+        return result
+
+
+def get_model_info(path, type):
+    if type == "onnx":
+        model = ONNXModel(path)
+    elif type == "pmml":
+        model = PMMLModel(path)
+    else:
+        return {
+            "stderr": "Not implemented model type."
+        }
+    response = {}
+    if model.is_support():
+        response['input'] = model.predictors(None, None)
+        response['output'] = model.outputs(None, None)
+        response['model_type'] = model.model_type()
+        response['algorithm'] = model.algorithm(
+        ) + "(" + model.mining_function(None) + ")"
+        response['engine'] = model.runtime()
+        return response
+    else:
+        return {
+            "stderr": "Not supported."
+        }
+
+
+def quick_predict(path, type, x_test):
+    if type == "onnx":
+        model = ONNXModel(path)
+    elif type == "pmml":
+        model = PMMLModel(path)
+    else:
+        return {
+            "stderr": "Not implemented model type."
+        }
+    if model.is_support():
+        return model.quick_prediction(x_test, None)
+    else:
+        return {
+            "stderr": "Not supported."
+        }
+
+
+def batch_predict(path, type, x_test):
+    if type == "onnx":
+        model = ONNXModel(path)
+    elif type == "pmml":
+        model = PMMLModel(path)
+    else:
+        return {
+            "stderr": "Not implemented model type."
+        }
+    if model.is_support():
+        return model.batch_predict(x_test, None)
+    else:
+        return {
+            "stderr": "Not supported."
+        }
+
+
+if __name__ == "__main__":
+    info = get_model_info(
+        r"D:\Program\Github\ML-Platform\Backend\ml\xgb-iris.pmml", "pmml")
+    print(info)
+    x_test = np.array([[1.0, 2.0, 3.0, 4.0], [2, 3, 4, 5]])
+
+    print(batch_predict(
+        r"D:\Program\Github\ML-Platform\Backend\ml\xgb-iris.pmml", "pmml", x_test))
+
+    info = get_model_info(
+        "D:\Program\Github\ML-Platform\Backend\ml\logreg_iris.onnx", "onnx")
+    print(info)
+    x_test = x_test.reshape(2, 1, 4)
+    print(batch_predict(
+        "D:\Program\Github\ML-Platform\Backend\ml\logreg_iris.onnx", "onnx", x_test))

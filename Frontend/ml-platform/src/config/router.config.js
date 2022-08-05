@@ -48,13 +48,14 @@ export const asyncRouterMap = [
         path: '/model',
         redirect: '/model/model-add',
         component: RouteView,
-        meta: { title: 'menu.form', icon: 'form', permission: ['form'] },
+        meta: { title: '模型', icon: 'form', permission: ['form'] },
+        name: '模型',
         children: [
           {
             path: '/model/model-add',
-            name: 'BaseForm',
+            name: '添加模型',
             component: () => import('@/views/model/modelAdd'),
-            meta: { title: 'menu.form.basic-form', keepAlive: true, permission: ['form'] }
+            meta: { title: '添加模型', keepAlive: true, permission: ['form'] }
           },
           {
             path: '/model/model-list',
@@ -82,7 +83,7 @@ export const asyncRouterMap = [
           //   meta: { title: 'menu.form.advanced-form', keepAlive: true, permission: ['form'] }
           // }
         ]
-      },
+      }
       // list
       // {
       //   path: '/list',
@@ -140,146 +141,146 @@ export const asyncRouterMap = [
       //   ]
       // }
       // profile
-      {
-        path: '/profile',
-        name: 'profile',
-        component: RouteView,
-        redirect: '/profile/basic',
-        meta: { title: 'menu.profile', icon: 'profile', permission: ['profile'] },
-        children: [
-          {
-            path: '/profile/basic',
-            name: 'ProfileBasic',
-            component: () => import('@/views/profile/basic'),
-            meta: { title: 'menu.profile.basic', permission: ['profile'] }
-          },
-          {
-            path: '/profile/advanced',
-            name: 'ProfileAdvanced',
-            component: () => import('@/views/profile/advanced/Advanced'),
-            meta: { title: 'menu.profile.advanced', permission: ['profile'] }
-          }
-        ]
-      },
+      // {
+      //   path: '/profile',
+      //   name: 'profile',
+      //   component: RouteView,
+      //   redirect: '/profile/basic',
+      //   meta: { title: 'menu.profile', icon: 'profile', permission: ['profile'] },
+      //   children: [
+      //     {
+      //       path: '/profile/basic',
+      //       name: 'ProfileBasic',
+      //       component: () => import('@/views/profile/basic'),
+      //       meta: { title: 'menu.profile.basic', permission: ['profile'] }
+      //     },
+      //     {
+      //       path: '/profile/advanced',
+      //       name: 'ProfileAdvanced',
+      //       component: () => import('@/views/profile/advanced/Advanced'),
+      //       meta: { title: 'menu.profile.advanced', permission: ['profile'] }
+      //     }
+      //   ]
+      // },
 
-      // result
-      {
-        path: '/result',
-        name: 'result',
-        component: RouteView,
-        redirect: '/result/success',
-        meta: { title: 'menu.result', icon: 'check-circle-o', permission: ['result'] },
-        children: [
-          {
-            path: '/result/success',
-            name: 'ResultSuccess',
-            component: () => import(/* webpackChunkName: "result" */ '@/views/result/Success'),
-            meta: { title: 'menu.result.success', keepAlive: false, hiddenHeaderContent: true, permission: ['result'] }
-          },
-          {
-            path: '/result/fail',
-            name: 'ResultFail',
-            component: () => import(/* webpackChunkName: "result" */ '@/views/result/Error'),
-            meta: { title: 'menu.result.fail', keepAlive: false, hiddenHeaderContent: true, permission: ['result'] }
-          }
-        ]
-      },
+      // // result
+      // {
+      //   path: '/result',
+      //   name: 'result',
+      //   component: RouteView,
+      //   redirect: '/result/success',
+      //   meta: { title: 'menu.result', icon: 'check-circle-o', permission: ['result'] },
+      //   children: [
+      //     {
+      //       path: '/result/success',
+      //       name: 'ResultSuccess',
+      //       component: () => import(/* webpackChunkName: "result" */ '@/views/result/Success'),
+      //       meta: { title: 'menu.result.success', keepAlive: false, hiddenHeaderContent: true, permission: ['result'] }
+      //     },
+      //     {
+      //       path: '/result/fail',
+      //       name: 'ResultFail',
+      //       component: () => import(/* webpackChunkName: "result" */ '@/views/result/Error'),
+      //       meta: { title: 'menu.result.fail', keepAlive: false, hiddenHeaderContent: true, permission: ['result'] }
+      //     }
+      //   ]
+      // },
 
-      // Exception
-      {
-        path: '/exception',
-        name: 'exception',
-        component: RouteView,
-        redirect: '/exception/403',
-        meta: { title: 'menu.exception', icon: 'warning', permission: ['exception'] },
-        children: [
-          {
-            path: '/exception/403',
-            name: 'Exception403',
-            component: () => import(/* webpackChunkName: "fail" */ '@/views/exception/403'),
-            meta: { title: 'menu.exception.not-permission', permission: ['exception'] }
-          },
-          {
-            path: '/exception/404',
-            name: 'Exception404',
-            component: () => import(/* webpackChunkName: "fail" */ '@/views/exception/404'),
-            meta: { title: 'menu.exception.not-find', permission: ['exception'] }
-          },
-          {
-            path: '/exception/500',
-            name: 'Exception500',
-            component: () => import(/* webpackChunkName: "fail" */ '@/views/exception/500'),
-            meta: { title: 'menu.exception.server-error', permission: ['exception'] }
-          }
-        ]
-      },
+      // // Exception
+      // {
+      //   path: '/exception',
+      //   name: 'exception',
+      //   component: RouteView,
+      //   redirect: '/exception/403',
+      //   meta: { title: 'menu.exception', icon: 'warning', permission: ['exception'] },
+      //   children: [
+      //     {
+      //       path: '/exception/403',
+      //       name: 'Exception403',
+      //       component: () => import(/* webpackChunkName: "fail" */ '@/views/exception/403'),
+      //       meta: { title: 'menu.exception.not-permission', permission: ['exception'] }
+      //     },
+      //     {
+      //       path: '/exception/404',
+      //       name: 'Exception404',
+      //       component: () => import(/* webpackChunkName: "fail" */ '@/views/exception/404'),
+      //       meta: { title: 'menu.exception.not-find', permission: ['exception'] }
+      //     },
+      //     {
+      //       path: '/exception/500',
+      //       name: 'Exception500',
+      //       component: () => import(/* webpackChunkName: "fail" */ '@/views/exception/500'),
+      //       meta: { title: 'menu.exception.server-error', permission: ['exception'] }
+      //     }
+      //   ]
+      // },
 
-      // account
-      {
-        path: '/account',
-        component: RouteView,
-        redirect: '/account/center',
-        name: 'account',
-        meta: { title: 'menu.account', icon: 'user', keepAlive: true, permission: ['user'] },
-        children: [
-          {
-            path: '/account/center',
-            name: 'center',
-            component: () => import('@/views/account/center'),
-            meta: { title: 'menu.account.center', keepAlive: true, permission: ['user'] }
-          },
-          {
-            path: '/account/settings',
-            name: 'settings',
-            component: () => import('@/views/account/settings/Index'),
-            meta: { title: 'menu.account.settings', hideHeader: true, permission: ['user'] },
-            redirect: '/account/settings/basic',
-            hideChildrenInMenu: true,
-            children: [
-              {
-                path: '/account/settings/basic',
-                name: 'BasicSettings',
-                component: () => import('@/views/account/settings/BasicSetting'),
-                meta: { title: 'account.settings.menuMap.basic', hidden: true, permission: ['user'] }
-              },
-              {
-                path: '/account/settings/security',
-                name: 'SecuritySettings',
-                component: () => import('@/views/account/settings/Security'),
-                meta: {
-                  title: 'account.settings.menuMap.security',
-                  hidden: true,
-                  keepAlive: true,
-                  permission: ['user']
-                }
-              },
-              {
-                path: '/account/settings/custom',
-                name: 'CustomSettings',
-                component: () => import('@/views/account/settings/Custom'),
-                meta: { title: 'account.settings.menuMap.custom', hidden: true, keepAlive: true, permission: ['user'] }
-              },
-              {
-                path: '/account/settings/binding',
-                name: 'BindingSettings',
-                component: () => import('@/views/account/settings/Binding'),
-                meta: { title: 'account.settings.menuMap.binding', hidden: true, keepAlive: true, permission: ['user'] }
-              },
-              {
-                path: '/account/settings/notification',
-                name: 'NotificationSettings',
-                component: () => import('@/views/account/settings/Notification'),
-                meta: {
-                  title: 'account.settings.menuMap.notification',
-                  hidden: true,
-                  keepAlive: true,
-                  permission: ['user']
-                }
-              }
-            ]
-          }
-        ]
-      }
+      // // account
+      // {
+      //   path: '/account',
+      //   component: RouteView,
+      //   redirect: '/account/center',
+      //   name: 'account',
+      //   meta: { title: 'menu.account', icon: 'user', keepAlive: true, permission: ['user'] },
+      //   children: [
+      //     {
+      //       path: '/account/center',
+      //       name: 'center',
+      //       component: () => import('@/views/account/center'),
+      //       meta: { title: 'menu.account.center', keepAlive: true, permission: ['user'] }
+      //     },
+      //     {
+      //       path: '/account/settings',
+      //       name: 'settings',
+      //       component: () => import('@/views/account/settings/Index'),
+      //       meta: { title: 'menu.account.settings', hideHeader: true, permission: ['user'] },
+      //       redirect: '/account/settings/basic',
+      //       hideChildrenInMenu: true,
+      //       children: [
+      //         {
+      //           path: '/account/settings/basic',
+      //           name: 'BasicSettings',
+      //           component: () => import('@/views/account/settings/BasicSetting'),
+      //           meta: { title: 'account.settings.menuMap.basic', hidden: true, permission: ['user'] }
+      //         },
+      //         {
+      //           path: '/account/settings/security',
+      //           name: 'SecuritySettings',
+      //           component: () => import('@/views/account/settings/Security'),
+      //           meta: {
+      //             title: 'account.settings.menuMap.security',
+      //             hidden: true,
+      //             keepAlive: true,
+      //             permission: ['user']
+      //           }
+      //         },
+      //         {
+      //           path: '/account/settings/custom',
+      //           name: 'CustomSettings',
+      //           component: () => import('@/views/account/settings/Custom'),
+      //           meta: { title: 'account.settings.menuMap.custom', hidden: true, keepAlive: true, permission: ['user'] }
+      //         },
+      //         {
+      //           path: '/account/settings/binding',
+      //           name: 'BindingSettings',
+      //           component: () => import('@/views/account/settings/Binding'),
+      //           meta: { title: 'account.settings.menuMap.binding', hidden: true, keepAlive: true, permission: ['user'] }
+      //         },
+      //         {
+      //           path: '/account/settings/notification',
+      //           name: 'NotificationSettings',
+      //           component: () => import('@/views/account/settings/Notification'),
+      //           meta: {
+      //             title: 'account.settings.menuMap.notification',
+      //             hidden: true,
+      //             keepAlive: true,
+      //             permission: ['user']
+      //           }
+      //         }
+      //       ]
+      //     }
+      //   ]
+      // }
 
       // other
       /*

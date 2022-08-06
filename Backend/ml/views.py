@@ -2,17 +2,18 @@ from django.shortcuts import render
 from django.http import JsonResponse, HttpResponse
 # Create your views here.
 from .models import Model_info,Test_info
-
+from django.views.decorators.csrf import csrf_exempt
 
 def model_add_singlemodel(file):
-    Model_info.objects.create(file)
+    Model_info.objects.create(file=file)
 
 import rarfile,zipfile
 import os
+@csrf_exempt
 def model_add(request,add_mode = 'single'):
-    if request.method == 'GET':
+    if request.method != 'POST':
         return HttpResponse("上传模型失败")
-    if request.method == 'POST':
+    else:
         if add_mode == 'single':
             model_add_singlemodel(file = request.FILES['file'])
             return HttpResponse('单个模型上传成功')
@@ -55,17 +56,18 @@ def model_add(request,add_mode = 'single'):
 
 from .ml import get_model_info
 def model_info(request, model_id):
-    model_path = Model_info.objects.filter(id=model_id).first().file.path
+    model_path = Model_info.objects.get(id=model_id).file.path
     info = get_model_info(model_path, model_path[-4:])
+    print(model_path[-4:])
     return JsonResponse(info)
 
 def test_file_add_single(file):
-    Test_info.objects.create(file)
+    Test_info.objects.create(file=file)
 
 def test_file_add(request):
-    if request.method == 'GET':
+    if request.method != 'POST':
         return HttpResponse("上传测试文件失败")
-    if request.method == 'POST':
+    else:
         add_mode = request.POST.get('add_mode')
         if add_mode == 'single':
             test_file_add_single(file = request.FILES['file'])

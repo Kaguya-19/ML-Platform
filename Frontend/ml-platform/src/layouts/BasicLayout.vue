@@ -24,7 +24,7 @@
     <template v-slot:headerContentRender>
       <div>
         <a-tooltip title="刷新页面">
-          <a-icon type="reload" style="font-size: 18px;cursor: pointer;" @click="() => { $message.info('只是一个DEMO') }" />
+          <a-icon type="reload" style="font-size: 18px;cursor: pointer;" @click="reload()" />
         </a-tooltip>
       </div>
     </template>
@@ -34,14 +34,14 @@
         This is SettingDrawer custom footer content.
       </div>
     </setting-drawer>
-    <template v-slot:rightContentRender>
+    <!-- <template v-slot:rightContentRender>
       <right-content :top-menu="settings.layout === 'topmenu'" :is-mobile="isMobile" :theme="settings.theme" />
-    </template>
+    </template> -->
     <!-- custom footer / 自定义Footer -->
     <template v-slot:footerRender>
       <global-footer />
     </template>
-    <router-view />
+    <router-view v-if="isRouterAlive" />
   </pro-layout>
 </template>
 
@@ -53,19 +53,19 @@ import { CONTENT_WIDTH_TYPE, SIDEBAR_TYPE, TOGGLE_MOBILE_TYPE } from '@/store/mu
 import { asyncRouterMap } from '@/config/router.config.js'
 
 import defaultSettings from '@/config/defaultSettings'
-import RightContent from '@/components/GlobalHeader/RightContent'
+// import RightContent from '@/components/GlobalHeader/RightContent'
 import GlobalFooter from '@/components/GlobalFooter'
-import Ads from '@/components/Other/CarbonAds'
+// import Ads from '@/components/Other/CarbonAds'
 import LogoSvg from '../assets/logo.svg?inline'
 
 export default {
   name: 'BasicLayout',
   components: {
     SettingDrawer,
-    RightContent,
+    // RightContent,
     GlobalFooter,
-    LogoSvg,
-    Ads
+    LogoSvg
+    // Ads
   },
   data () {
     return {
@@ -73,6 +73,9 @@ export default {
       isProPreviewSite: process.env.VUE_APP_PREVIEW === 'true' && process.env.NODE_ENV !== 'development',
       // end
       isDev: process.env.NODE_ENV === 'development' || process.env.VUE_APP_PREVIEW === 'true',
+
+      // refresh
+      isRouterAlive: true,
 
       // base
       menus: [],
@@ -171,6 +174,12 @@ export default {
           }
           break
       }
+    },
+    reload () {
+      this.isRouterAlive = false
+      this.$nextTick(function () {
+        this.isRouterAlive = true
+      })
     }
   }
 }

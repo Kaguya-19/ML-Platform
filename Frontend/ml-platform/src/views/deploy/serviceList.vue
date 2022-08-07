@@ -30,21 +30,20 @@ import { defineComponent } from 'vue'
 // import { STable, Ellipsis } from '@/components'
 const modelColumns = [
   {
-    title: 'Model number',
-    dataIndex: 'number'
+    title: 'Service name',
+    dataIndex: 'name'
   },
   {
-    title: 'Description',
-    dataIndex: 'description'
+    title: 'Type',
+    dataIndex: 'type'
+  },
+  {
+    title: 'Start time',
+    dataIndex: 'time'
   },
   {
     title: 'Status',
-    dataIndex: 'status',
-    key: 'status'
-  },
-  {
-    title: 'Added time',
-    dataIndex: 'time'
+    dataIndex: 'status'
   },
   {
     title: 'Operation',
@@ -55,9 +54,9 @@ const modelColumns = [
 const modelData = [
   {
     key: '1',
-    number: 1,
+    name: 'Sample service',
     status: 'undeployed',
-    description: 'This is a model.',
+    type: 'This is a model type',
     time: '2022-8-7 22:10'
     // operation: 'test'
   }

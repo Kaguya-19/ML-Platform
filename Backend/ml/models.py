@@ -10,6 +10,8 @@ class Model_info(models.Model):
     output = models.JSONField(blank=True,null=True)
     algorithm = models.CharField(blank=True,null=True,max_length=50)
     engine = models.CharField(blank=True,null=True,max_length=50)
+    depoly_status = models.BooleanField(default=True) #True run,False pause
+    run_status = models.BooleanField(default=True) #True run,False pause
 
 class Test_info(models.Model):
     tested_file = models.FileField(upload_to='test_files_info')

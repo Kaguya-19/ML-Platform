@@ -25,7 +25,7 @@
             :placeholder="$t('form.basic-form.goal.placeholder')"
             v-decorator="[
               'description',
-              {rules: [{ required: true, message: $t('form.basic-form.goal.required') }]}
+              {rules: [{ required: false }]}
             ]" />
         </a-form-item>
         <!-- 模型类型 -->

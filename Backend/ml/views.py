@@ -1,65 +1,104 @@
 from django.shortcuts import render
 from django.http import JsonResponse, HttpResponse
+from django.forms.models import model_to_dict
 # Create your views here.
 from .models import Model_info,Test_info
 from django.views.decorators.csrf import csrf_exempt
 
-def model_add_singlemodel(file):
-    Model_info.objects.create(file=file)
+def model_add_singlemodel(name,description,model_type,file):
+    model = Model_info.objects.create(name=name,description=description,model_type=model_type,file=file)
+    return model
 
 import rarfile,zipfile
 import os
-@csrf_exempt
-def model_add(request,add_mode = 'single'):
-    if request.method != 'POST':
-        return HttpResponse("上传模型失败")
-    else:
-        if add_mode == 'single':
-            model_add_singlemodel(file = request.FILES['file'])
-            return HttpResponse('单个模型上传成功')
-        else:
-            # 解压zip/rar的模型文件并保存至model
-            current_work_dir = os.path.dirname (__file__)
-            tmp_models_dir = current_work_dir + '/tmpTest'
-
-            if not os.path.exists(tmp_models_dir):
-                os.makedirs(dir)
-
-            src_file = request.FILES['file']
-            file_type = '.zip'
-
-            if file_type == '.zip':
-                # 需要安装zip包：pip install zipp
-                zip_file = zipfile.ZipFile(src_file)
-                for names in zip_file.namelist():
-                    zip_file.extract(names, tmp_models_dir)
-                zip_file.close()
-            elif file_type == '.rar':
-                # 需要安装rar包：pip install rarfile
-                rar = rarfile.RarFile(src_file)
-                os.chdir(tmp_models_dir)
-                rar.extractall()
-                rar.close()
-
-            # TODO 多线程     
-            files=os.listdir(tmp_models_dir)
-            for i in files:
-                file_path=os.path.join(tmp_models_dir+i)
-                f = open(file_path)
-                file = f.read()
-                f.close()
-                model_add_singlemodel(file)
-            pass
-            return HttpResponse('压缩文件下模型上传成功')
-
-
-
 from .ml import get_model_info
+
+def model_add(request,add_mode = 'single'):
+    res = dict()
+    willContinue = True
+    if request.method != 'POST':
+        res = {"errmsg":"上传模型失败"}
+        willContinue = False
+    else:
+        try:
+            name = request.POST.get('name')
+            description = request.POST.get('description','')
+            model_type = request.POST.get('model_type')
+            if add_mode == 'single':
+                model = model_add_singlemodel(name,description,model_type,file = request.FILES['file'])
+                info = get_model_info(model.file.path, model.model_type)
+                if "stderr" in info:
+                    res = {"errmsg":"模型不合法"}
+                    os.remove(model.file.path)
+                    model.delete()
+                    willContinue = False
+                else:
+                    try:
+                        model.input=info['input']
+                        model.output=info['output']
+                        model.algorithm=info['algorithm']
+                        model.engine=info['engine']
+                        model.save()
+                    except:
+                        res = {"errmsg":"模型不合法"}
+                        os.remove(model.file.path)
+                        model.delete()
+                        willContinue = False
+            # else:
+            #     # 解压zip/rar的模型文件并保存至model
+            #     current_work_dir = os.path.dirname (__file__)
+            #     tmp_models_dir = current_work_dir + '/tmpTest'
+            #     if not os.path.exists(tmp_models_dir):
+            #         os.makedirs(dir)
+            #     src_file = request.FILES['file']
+            #     file_type = '.zip'
+            #     if file_type == '.zip':
+            #         # 需要安装zip包：pip install zipp
+            #         zip_file = zipfile.ZipFile(src_file)
+            #         for names in zip_file.namelist():
+            #             zip_file.extract(names, tmp_models_dir)
+            #         zip_file.close()
+            #     elif file_type == '.rar':
+            #         # 需要安装rar包：pip install rarfile
+            #         rar = rarfile.RarFile(src_file)
+            #         os.chdir(tmp_models_dir)
+            #         rar.extractall()
+            #         rar.close()
+            #     # TODO 多线程     
+            #     files=os.listdir(tmp_models_dir)
+            #     for i in files:
+            #         file_path=os.path.join(tmp_models_dir+i)
+            #         f = open(file_path)
+            #         file = f.read()
+            #         f.close()
+            #         model_add_singlemodel(file)
+            #     pass
+        except:
+            res = {"errmsg":"上传模型失败"}
+            willContinue = False
+    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
+    if willContinue:
+        resp.status_code = 200
+    else:
+        resp.status_code = 400
+    return resp
+
 def model_info(request, model_id):
-    model_path = Model_info.objects.get(id=model_id).file.path
-    info = get_model_info(model_path, model_path[-4:])
-    print(model_path[-4:])
-    return JsonResponse(info)
+    res = dict()
+    willContinue = True
+    try:
+        model = Model_info.objects.get(id=model_id)
+        res = model_to_dict(model)
+        res['file']=None
+    except:
+        res = {"errmsg":"读取模型信息失败"}
+        willContinue = False
+    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
+    if willContinue:
+        resp.status_code = 200
+    else:
+        resp.status_code = 400
+    return resp
 
 def test_file_add_single(file):
     Test_info.objects.create(file=file)

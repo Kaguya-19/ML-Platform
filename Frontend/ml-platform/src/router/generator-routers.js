@@ -18,6 +18,11 @@ const constantRouterComponents = {
   Workplace: () => import('@/views/dashboard/Workplace'),
   Analysis: () => import('@/views/dashboard/Analysis'),
 
+  // model
+  ModelTest: () => import('@/views/model/modelTest'),
+  ModelAdd: () => import('@/views/model/modelAdd'),
+  ModelList: () => import('@/views/model/modelList'),
+
   // form
   BasicForm: () => import('@/views/form/basicForm'),
   StepForm: () => import('@/views/form/stepForm/StepForm'),

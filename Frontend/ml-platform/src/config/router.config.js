@@ -50,27 +50,25 @@ export const asyncRouterMap = [
         path: '/model',
         redirect: '/model/model-add',
         component: RouteView,
-        meta: { title: '模型', icon: 'form', permission: ['form'] },
-        name: '模型',
+        meta: { title: 'menu.form', icon: 'form', permission: ['form'] },
         children: [
           {
             path: '/model/model-add',
-            name: '添加模型',
+            name: 'ModelAdd',
             component: () => import('@/views/model/modelAdd'),
-            meta: { title: '添加模型', keepAlive: true, permission: ['form'] }
+            meta: { title: 'Add model', keepAlive: true, permission: ['form'] }
           },
           {
             path: '/model/model-list',
-            name: 'TableListWrapper',
-            hideChildrenInMenu: true, // 强制显示 MenuItem 而不是 SubMenu
+            name: 'ModelList',
             component: () => import('@/views/model/modelList'),
-            meta: { title: 'menu.list.table-list', keepAlive: true, permission: ['table'] }
+            meta: { title: 'Model list', keepAlive: true, permission: ['table'] }
           },
           {
             path: '/model/model-test',
             name: 'ModelTest',
             component: () => import('@/views/model/modelTest'),
-            meta: { title: 'menu.form.step-form', keepAlive: true, permission: ['form'] }
+            meta: { title: 'Test model', keepAlive: true, permission: ['form'] }
           }
           // {
           //   path: '/form/step-form',
@@ -85,63 +83,36 @@ export const asyncRouterMap = [
           //   meta: { title: 'menu.form.advanced-form', keepAlive: true, permission: ['form'] }
           // }
         ]
-      }
+      },
+
       // list
-      // {
-      //   path: '/list',
-      //   name: 'list',
-      //   component: RouteView,
-      //   redirect: '/list/table-list',
-      //   meta: { title: 'menu.list', icon: 'table', permission: ['table'] },
-      //   children: [
-      //     {
-      //       path: '/list/table-list/:pageNo([1-9]\\d*)?',
-      //       name: 'TableListWrapper',
-      //       hideChildrenInMenu: true, // 强制显示 MenuItem 而不是 SubMenu
-      //       component: () => import('@/views/list/TableList'),
-      //       meta: { title: 'menu.list.table-list', keepAlive: true, permission: ['table'] }
-      //     },
-      //     {
-      //       path: '/list/basic-list',
-      //       name: 'BasicList',
-      //       component: () => import('@/views/list/BasicList'),
-      //       meta: { title: 'menu.list.basic-list', keepAlive: true, permission: ['table'] }
-      //     },
-      //     {
-      //       path: '/list/card',
-      //       name: 'CardList',
-      //       component: () => import('@/views/list/CardList'),
-      //       meta: { title: 'menu.list.card-list', keepAlive: true, permission: ['table'] }
-      //     },
-      //     {
-      //       path: '/list/search',
-      //       name: 'SearchList',
-      //       component: () => import('@/views/list/search/SearchLayout'),
-      //       redirect: '/list/search/article',
-      //       meta: { title: 'menu.list.search-list', keepAlive: true, permission: ['table'] },
-      //       children: [
-      //         {
-      //           path: '/list/search/article',
-      //           name: 'SearchArticles',
-      //           component: () => import('../views/list/search/Article'),
-      //           meta: { title: 'menu.list.search-list.articles', permission: ['table'] }
-      //         },
-      //         {
-      //           path: '/list/search/project',
-      //           name: 'SearchProjects',
-      //           component: () => import('../views/list/search/Projects'),
-      //           meta: { title: 'menu.list.search-list.projects', permission: ['table'] }
-      //         },
-      //         {
-      //           path: '/list/search/application',
-      //           name: 'SearchApplications',
-      //           component: () => import('../views/list/search/Applications'),
-      //           meta: { title: 'menu.list.search-list.applications', permission: ['table'] }
-      //         }
-      //       ]
-      //     }
-      //   ]
-      // }
+      {
+        path: '/deploy',
+        name: 'deploy',
+        component: RouteView,
+        redirect: '/deploy/deploy-add',
+        meta: { title: 'Deploy', icon: 'table', permission: ['table'] },
+        children: [
+          {
+            path: '/deploy/deploy-add',
+            name: 'DeployAdd',
+            component: () => import('@/views/deploy/serviceAdd'),
+            meta: { title: 'Add service', keepAlive: true, permission: ['table'] }
+          },
+          {
+            path: '/deploy/deploy-list',
+            name: 'DeployList',
+            component: () => import('@/views/deploy/serviceList'),
+            meta: { title: 'Service List', keepAlive: true, permission: ['table'] }
+          },
+          {
+            path: '/deploy/deploy-test',
+            name: 'DeployTest',
+            component: () => import('@/views/deploy/serviceTest'),
+            meta: { title: 'Test service', keepAlive: true, permission: ['table'] }
+          }
+        ]
+      }
       // profile
       // {
       //   path: '/profile',

@@ -14,7 +14,7 @@ import themePluginConfig from '../config/themePluginConfig'
 // mock
 // WARNING: `mockjs` NOT SUPPORT `IE` PLEASE DO NOT USE IN `production` ENV.
 import './mock'
-
+import axios from 'axios'
 import bootstrap from './core/bootstrap'
 import './core/lazy_use' // use lazy load components
 import './utils/filter' // global filter
@@ -29,6 +29,7 @@ Vue.component('pro-layout', ProLayout)
 Vue.component('page-container', PageHeaderWrapper)
 Vue.component('page-header-wrapper', PageHeaderWrapper)
 
+axios.defaults.baseURL = 'http://127.0.0.1:8080'
 window.umi_plugin_ant_themeVar = themePluginConfig.theme
 
 new Vue({

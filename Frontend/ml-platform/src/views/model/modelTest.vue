@@ -46,7 +46,7 @@
         <a-col :span="12">
           <a-card title="Input" :bordered="false">
             <a-form>
-              <a-form-item v-for='(data, index) in inputData' :key="index" :label='data.iField'>
+              <a-form-item v-for="(data, index) in inputData" :key="index" :label="data.iField">
                 <a-input/>
               </a-form-item>
               <a-form-item :wrapper-col="{ span: 14, offset: 15 }">

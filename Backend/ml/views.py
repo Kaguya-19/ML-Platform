@@ -1,9 +1,10 @@
 from django.shortcuts import render
 from django.http import JsonResponse, HttpResponse
 from django.forms.models import model_to_dict
+from django.core import serializers
 # Create your views here.
 from .models import Model_info,Test_info
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_exempt,ensure_csrf_cookie
 
 def model_add_singlemodel(name,description,model_type,file):
     model = Model_info.objects.create(name=name,description=description,model_type=model_type,file=file)
@@ -12,6 +13,16 @@ def model_add_singlemodel(name,description,model_type,file):
 import rarfile,zipfile
 import os
 from .ml import get_model_info
+
+@ensure_csrf_cookie
+def model_api(request):
+    if request.method == 'POST':
+        return model_add(request)
+    elif request.method == 'GET':
+        return model_all(request)
+    else:
+        return JsonResponse({"errmsg":"请求有误"},status=400)
+
 
 def model_add(request,add_mode = 'single'):
     res = dict()
@@ -82,6 +93,14 @@ def model_add(request,add_mode = 'single'):
     else:
         resp.status_code = 400
     return resp
+
+def model_all(request):
+    try:
+        models = Model_info.objects.order_by('id').values('name','model_type','id')
+        context = {'models':list(models)} #TODO:page
+        return JsonResponse(context)
+    except:
+        return JsonResponse({"errmsg":"获取信息失败"},status=400)
 
 def model_info(request, model_id):
     res = dict()

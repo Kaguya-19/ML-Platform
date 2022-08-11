@@ -30,6 +30,14 @@ Vue.component('page-container', PageHeaderWrapper)
 Vue.component('page-header-wrapper', PageHeaderWrapper)
 
 axios.defaults.baseURL = 'http://127.0.0.1:8080'
+
+// axios.interceptors.request.use((config) => {
+//   config.headers['X-Requested-With'] = 'XMLHttpRequest'
+//   const regex = /.*csrftoken=([^;.]*).*$/ // 用于从cookie中匹配 csrftoken值
+//   config.headers['X-CSRFToken'] = document.cookie.match(regex) === null ? null : document.cookie.match(regex)[1]
+//   return config
+// })
+
 window.umi_plugin_ant_themeVar = themePluginConfig.theme
 
 new Vue({

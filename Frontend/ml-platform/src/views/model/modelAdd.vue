@@ -104,7 +104,7 @@ export default {
           //   console.log('key %s: value %s', key, val)
           // })
           axios({
-            url: '/ml/add-model',
+            url: '/ml/model',
             method: 'post',
             processData: false,
             headers: {
@@ -116,7 +116,11 @@ export default {
                 this.$router.push('/model/model-list')
               }).catch(err => {
               console.log(err)
-              this.$message.error('upload failed.')
+              if ('errmsg' in err.response.data) {
+                this.$message.error(err.response.data.errmsg)
+              } else {
+                this.$message.error('upload failed.')
+                }
             })
         }
       })

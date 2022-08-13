@@ -97,10 +97,18 @@ def model_add(request,add_mode = 'single'):
 def model_all(request):
     try:
         models = Model_info.objects.order_by('id').values('name','model_type','id')
-        context = {'models':list(models)} #TODO:page
+        context = {'result':{'data':list(models)}} #TODO:page https://pro.antdv.com/components/s-table
         return JsonResponse(context)
     except:
         return JsonResponse({"errmsg":"获取信息失败"},status=400)
+
+def model_info_api(request, model_id):
+    if request.method == 'DELETE':
+        return model_delete(request, model_id)
+    elif request.method == 'GET':
+        return model_info(request, model_id)
+    else:
+        return JsonResponse({"errmsg":"请求有误"},status=400)
 
 def model_info(request, model_id):
     res = dict()
@@ -109,6 +117,23 @@ def model_info(request, model_id):
         model = Model_info.objects.get(id=model_id)
         res = model_to_dict(model)
         res['file']=None
+    except:
+        res = {"errmsg":"读取模型信息失败"}
+        willContinue = False
+    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
+    if willContinue:
+        resp.status_code = 200
+    else:
+        resp.status_code = 400
+    return resp
+
+def model_delete(request, model_id):
+    res = dict()
+    willContinue = True
+    try:
+        model = Model_info.objects.get(id=model_id)
+        os.remove(model.file.path)
+        model.delete()
     except:
         res = {"errmsg":"读取模型信息失败"}
         willContinue = False

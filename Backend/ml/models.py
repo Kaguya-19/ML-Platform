@@ -15,3 +15,7 @@ class Model_info(models.Model):
 
 class Test_info(models.Model):
     tested_file = models.FileField(upload_to='test_files_info')
+    mod = models.ForeignKey(to=Model_info, on_delete=models.CASCADE, null=True)
+    thread_ID = models.IntegerField(default=-1)
+    is_finished = models.BooleanField(blank=True,null=True)
+    result = models.JSONField(blank=True,null=True)

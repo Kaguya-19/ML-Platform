@@ -1,3 +1,5 @@
+import threading
+
 from django.shortcuts import render
 from django.http import JsonResponse, HttpResponse
 from django.forms.models import model_to_dict
@@ -11,7 +13,6 @@ def model_add_singlemodel(name,description,model_type,file):
     model = Model_info.objects.create(name=name,description=description,model_type=model_type,file=file)
     return model
 
-import rarfile,zipfile
 import os
 from .ml import get_model_info
 
@@ -209,7 +210,8 @@ def model_change(request, model_id):
     return resp
 
 def test_file_add_single(file):
-    Test_info.objects.create(file=file)
+    model = Test_info.objects.create(tested_file=file)
+    return model
 
 def test_file_add(request):
     if request.method != 'POST':
@@ -217,32 +219,62 @@ def test_file_add(request):
     else:
         add_mode = request.POST.get('add_mode')
         if add_mode == 'single':
-            test_file_add_single(file = request.FILES['file'])
+            test_file_add_single(file = request.FILES['tested_file'])
             return HttpResponse('单个测试文件上传成功')
         else:
             # TODO：后续可增加查看单一文件功能
-            test_file_add_single(file = request.FILES['file'])
+            test_file_add_single(file = request.FILES['tested_file'])
             return HttpResponse('压缩文件下测试文件上传成功')
 
-
 from .ml import batch_predict,quick_predict
+from threading import Thread
+import cv2
+import zipfile
+import numpy as np
 
-def test_singlefile(request, test_file_id ,mode = 'single'):
-    tested_file_path =  Test_info.objects.filter(id=test_file_id).first().file.path
-    tested_model_type = '.onnx' # path[-4:]
-    
-    f = open(tested_file_path)
-    tested_file = f.read()
-    f.close()
-    
+def start_test(test_file_id , model_id, mode = 'single'):
+    test_task =  Test_info.objects.get(id=test_file_id)
+    test_file = test_task.file
+    test_task.mod = Model_info.objects.get(id=model_id)
+    test_task.threadID = threading.currentThread().ident
+    test_task.is_finished = False
+    test_task.save()
+    tested_model_type = test_task.mod.model_type
+    tested_model_path = test_task.mod.file.path
+    res = {}
+    # TODO test_file预处理
     if mode == 'single':
-        tested_model_path = tested_file_path
-        tested_result = quick_predict(tested_model_path,type = tested_model_type,x_test = tested_file)
+        res['result'] = quick_predict(tested_model_path,type = tested_model_type,x_test = test_file)
+        test_task.result = res['result']
+        test_task.is_finished = True
+        test_task.save()
     else:
-        # TODO 好像没解压缩,这里要加一个接口
-        tested_result = batch_predict(path = tested_model_path, type = tested_model_type,x_test = tested_file)
-    return JsonResponse(tested_result, mode)
+        # 不解压直接读取zip中的图片
+        with zipfile.ZipFile(test_file.path, mode='r') as zfile:  # 只读方式打开压缩包
 
+            for name in zfile.namelist():
+                if '.jpg' not in name:
+                    continue
+
+                with zfile.open(name, mode='r') as image_file:
+                    content = image_file.read()  # 一次性读入整张图片信息
+                    image = np.asarray(bytearray(content), dtype='uint8')
+                    image = cv2.imdecode(image, cv2.IMREAD_COLOR)
+                    cv2.imshow('image', image)
+
+            zfile.close()
+            # TODO 集中np转化
+        res['result'] = batch_predict(path = tested_model_path, type = tested_model_type,x_test = test_file)
+        test_task.result = res['result']
+        test_task.is_finished = True
+        test_task.save()
+    return JsonResponse(res)
+
+def new_task(request, test_file_id, mode = 'single'):
+    model_id = request.POST.get['model_id']
+    param_tuple = (test_file_id, model_id, mode)
+    new_thread = Thread(target=start_test, args=param_tuple)
+    new_thread.start()
 
 # 测试
 if __name__ == "__main__":

@@ -68,7 +68,8 @@ export const asyncRouterMap = [
             path: '/model/model-test',
             name: 'ModelTest',
             component: () => import('@/views/model/modelTest'),
-            meta: { title: 'Test model', keepAlive: true, permission: ['form'] }
+            meta: { title: 'Test model', keepAlive: true, permission: ['form'] },
+            hidden: true
           }
           // {
           //   path: '/form/step-form',
@@ -359,7 +360,6 @@ export const constantRouterMap = [
       }
     ]
   },
-
   {
     path: '/404',
     component: () => import(/* webpackChunkName: "fail" */ '@/views/exception/404')

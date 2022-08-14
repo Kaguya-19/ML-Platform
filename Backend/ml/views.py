@@ -1,10 +1,11 @@
 from django.shortcuts import render
 from django.http import JsonResponse, HttpResponse
 from django.forms.models import model_to_dict
-from django.core import serializers
+from django.core.paginator import  Paginator
+import datetime
 # Create your views here.
 from .models import Model_info,Test_info
-from django.views.decorators.csrf import csrf_exempt,ensure_csrf_cookie
+from .filters import ModelFilter
 
 def model_add_singlemodel(name,description,model_type,file):
     model = Model_info.objects.create(name=name,description=description,model_type=model_type,file=file)
@@ -14,7 +15,8 @@ import rarfile,zipfile
 import os
 from .ml import get_model_info
 
-@ensure_csrf_cookie
+BASE_URL='http://127.0.0.1:8080'
+
 def model_api(request):
     if request.method == 'POST':
         return model_add(request)
@@ -96,8 +98,26 @@ def model_add(request,add_mode = 'single'):
 
 def model_all(request):
     try:
-        models = Model_info.objects.order_by('id').values('name','model_type','id')
-        context = {'result':{'data':list(models)}} #TODO:page https://pro.antdv.com/components/s-table
+        pageNo = int(request.GET.get('pageNo',1))
+        pageSize = int(request.GET.get('pageSize',10))
+        text = request.GET.get('name','')
+        model_type = request.GET.get('model_type','')
+        
+        if model_type != '':
+            models = Model_info.objects.filter(model_type=model_type).order_by('id').values('name','model_type','id')
+            print(models)
+        else:
+            models = Model_info.objects.order_by('id').values('name','model_type','id')
+        if text != '':
+            models = ModelFilter({"name":text}, queryset=models).qs
+        
+        paginator = Paginator(models, pageSize)
+        context = {'result':{'data':list(paginator.page(pageNo)),
+                             'pageSize':pageSize,
+                             'pageNo':pageNo,
+                             'totalCount':models.count(),
+                             'totalPage':paginator.num_pages
+                             }}
         return JsonResponse(context)
     except:
         return JsonResponse({"errmsg":"获取信息失败"},status=400)
@@ -107,6 +127,8 @@ def model_info_api(request, model_id):
         return model_delete(request, model_id)
     elif request.method == 'GET':
         return model_info(request, model_id)
+    elif request.method == 'PUT':
+        return model_change(request, model_id)
     else:
         return JsonResponse({"errmsg":"请求有误"},status=400)
 
@@ -116,7 +138,8 @@ def model_info(request, model_id):
     try:
         model = Model_info.objects.get(id=model_id)
         res = model_to_dict(model)
-        res['file']=None
+        res['file']=BASE_URL+res['file'].url
+        res['addTime'] = model.addTime.strftime("%Y-%m-%d %H:%M")
     except:
         res = {"errmsg":"读取模型信息失败"}
         willContinue = False
@@ -137,6 +160,47 @@ def model_delete(request, model_id):
     except:
         res = {"errmsg":"读取模型信息失败"}
         willContinue = False
+    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
+    if willContinue:
+        resp.status_code = 200
+    else:
+        resp.status_code = 400
+    return resp
+
+def model_change(request, model_id):
+    res = dict()
+    willContinue = True
+    print(request.PUT)
+    try:
+        name = request.PUT.get('name')
+        description = request.PUT.get('description','')
+        model_type = request.PUT.get('model_type')
+        model = Model_info.objects.get(id=model_id)
+        if 'file' in request.FILES:
+            model.file = request.FILES['file']
+            info = get_model_info(model.file.path, model_type)
+            if "stderr" in info:
+                res = {"errmsg":"模型不合法"}
+                os.remove(model.file.path)
+                willContinue = False
+            else:
+                try:
+                    model.input=info['input']
+                    model.output=info['output']
+                    model.algorithm=info['algorithm']
+                    model.engine=info['engine']
+                    model.save()
+                except:
+                    res = {"errmsg":"模型不合法"}
+                    os.remove(model.file.path)
+                    willContinue = False
+        model.name = name
+        model.model_type =model_type
+        model.description = description
+        model.save()  
+    except:
+            res = {"errmsg":"上传模型失败"}
+            willContinue = False
     resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
     if willContinue:
         resp.status_code = 200

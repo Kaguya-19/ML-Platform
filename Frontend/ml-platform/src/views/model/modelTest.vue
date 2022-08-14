@@ -3,13 +3,20 @@
     <!-- 选择菜单：模型概述/测试 -->
     <a-menu mode="horizontal">
       <a-menu-item @click="showPage('info')">Model infomation</a-menu-item>
+      <a-menu-item @click="showPage('change')">Change model</a-menu-item>
       <a-menu-item @click="showPage('test')">Model test</a-menu-item>
+      <a-menu-item @click="showPage('tasks')">Model tasks</a-menu-item>
+      <a-menu-item @click="showPage('pre')">Pre</a-menu-item>
     </a-menu>
     <!-- 模型概述 -->
     <template v-if="page=='info'">
       <!-- 基本信息 -->
+
       <a-card :bordered="false">
         <a-row type="flex">
+          <a-col flex="auto">
+            <a-statistic title="Name" :value="modelName" />
+          </a-col>
           <a-col flex="auto">
             <a-statistic title="Type" :value="modelType" />
           </a-col>
@@ -23,25 +30,149 @@
             <a-statistic title="Added time" :value="modelTime" />
           </a-col>
         </a-row>
+        <a-row type="flex" style="margin-top: 20px">
+          <a-descriptions title="Description" v-if="modelDescription!==''" :value="modelDescription">
+            <a-descriptions-item>{{ modelDescription }}</a-descriptions-item>
+          </a-descriptions>
+        </a-row>
       </a-card>
+
       <!-- 输入/目标变量 -->
       <a-row type="flex" :gutter="16" style="margin-top: 20px">
         <a-col :span="12">
           <a-card title="Input variable" :bordered="false">
-            <a-table :columns="inputColumns" :data-source="inputData">
+            <a-table :columns="inputColumns" :data-source="inputData" :rowKey="record => record.name">
             </a-table>
           </a-card>
         </a-col>
         <a-col :span="12">
-          <a-card title="Object variable" :bordered="false">
-            <a-table :columns="objectColumns" :data-source="objectData">
+          <a-card title="output variable" :bordered="false">
+            <a-table :columns="outputColumns" :data-source="outputData" :rowKey="record => record.name">
             </a-table>
           </a-card>
         </a-col>
       </a-row>
     </template>
+    <!-- change -->
+    <template v-if="page=='change'">
+      <a-form @submit="handleSubmit" :form="form" >
+        <a-form-item
+          :label="$t('form.basic-form.title.label')"
+          :labelCol="{lg: {span: 7}, sm: {span: 7}}"
+          :wrapperCol="{lg: {span: 10}, sm: {span: 17} }">
+          <a-input
+            v-decorator="[
+              'name',
+              {rules: [{ required: true, message: $t('form.basic-form.title.required') }],
+               initialValue : modelName }
+            ]"
+            name="name"/>
+        </a-form-item>
+        <a-form-item
+          :label="$t('form.basic-form.goal.label')"
+          :labelCol="{lg: {span: 7}, sm: {span: 7}}"
+          :wrapperCol="{lg: {span: 10}, sm: {span: 17} }">
+          <a-textarea
+            rows="4"
+            v-decorator="[
+              'description',
+              {rules: [{ required: false }],
+               initialValue : modelDescription
+              }
+            ]" />
+        </a-form-item>
+        <!-- 模型类型 -->
+        <a-form-item
+          label="Model type"
+          :labelCol="{lg: {span: 7}, sm: {span: 7}}"
+          :wrapperCol="{lg: {span: 10}, sm: {span: 17}}"
+        >
+          <a-select
+            v-decorator="['model_type', { rules: [{required: true, message: 'Please choose your model type'}], initialValue: modelType}]">
+            <a-select-option value="pmml">PMML</a-select-option>
+            <a-select-option value="onnx">ONNX</a-select-option>
+          </a-select>
+        </a-form-item>
+        <!-- 模型文件上传 -->
+        <a-form-item
+          label="Model file"
+          :labelCol="{lg: {span: 7}, sm: {span: 7}}"
+          :wrapperCol="{lg: {span: 10}, sm: {span: 17}}"
+        >
+          <a-upload
+            name="file"
+            :file-list="fileList"
+            :before-upload="beforeUpload"
+            :multiplt="false"
+            :max-count="1"
+            v-decorator="['file']"
+            :show-upload-list="{ showRemoveIcon: false }"
+          >
+            <a-button> <a-icon type="upload" /> Select File </a-button>
+          </a-upload>
+        </a-form-item>
+        <a-form-item
+          :wrapperCol="{ span: 24 }"
+          style="text-align: center"
+        >
+          <a-button htmlType="submit" type="primary">{{ $t('form.basic-form.form.submit') }}</a-button>
+          <!-- <a-button style="margin-left: 8px">{{ $t('form.basic-form.form.save') }}</a-button> -->
+        </a-form-item>
+      </a-form>
+    </template>
     <!-- 模型测试 -->
     <template v-if="page=='test'">
+      <a-row type="flex" :gutter="16">
+        <a-col :span="12">
+          <a-card title="Input" :bordered="false">
+            <a-form @submit="onSubmit" :form="testForm" >
+              <a-form-item v-for="(data, index) in inputData" :key="index" :label="data.name+' (Type:'+data.type+')'">
+                <!-- todo:upload -->
+                <a-input/>
+              </a-form-item>
+              <a-form-item :wrapper-col="{ span: 14, offset: 15 }">
+                <!-- <a-button @click.prevent="reset">Clear</a-button> -->
+                <a-button type="primary" htmlType="submit" style="margin-left: 16px">Submit</a-button>
+              </a-form-item>
+            </a-form>
+          </a-card>
+        </a-col>
+        <a-col :span="12">
+          <a-card title="Output" :bordered="false">
+            <textarea style="border: none">
+              Here is the outcome!
+            </textarea>
+          </a-card>
+        </a-col>
+      </a-row>
+    </template>
+    <!-- tasks -->
+    <template v-if="page=='tasks'">
+      <a-row type="flex" :gutter="16">
+        <a-col :span="12">
+          <a-card title="Input" :bordered="false">
+            <a-form>
+              <a-form-item v-for="(data, index) in inputData" :key="index" :label="data.iField">
+                <a-input/>
+              </a-form-item>
+              <a-form-item :wrapper-col="{ span: 14, offset: 15 }">
+                <a-button @click.prevent="onSubmit">Clear</a-button>
+                <a-button type="primary" @click="reset" style="margin-left: 16px">Submit</a-button>
+              </a-form-item>
+            </a-form>
+          </a-card>
+        </a-col>
+        <a-col :span="12">
+          <a-card title="Output" :bordered="false">
+            <textarea style="border: none">
+              Here is the outcome!
+            </textarea>
+          </a-card>
+        </a-col>
+      </a-row>
+    </template>
+    <!-- pre -->
+    <template v-if="page=='pre'">
       <a-row type="flex" :gutter="16">
         <a-col :span="12">
           <a-card title="Input" :bordered="false">
@@ -69,82 +200,49 @@
 </template>
 
 <script>
-const inputData = [
-  {
-    key: '1',
-    iField: 'length(cm)',
-    iType: 'double',
-    iMeasurement: 'continuous'
-    // iValue:
-  },
-  {
-    key: '2',
-    iField: 'length(cm)',
-    iType: 'double',
-    iMeasurement: 'continuous'
-    // iValue:
-  },
-  {
-    key: '3',
-    iField: 'length(cm)',
-    iType: 'double',
-    iMeasurement: 'continuous'
-    // iValue:
-  }
-]
+import axios from 'axios'
+
+var inputData = []
 // 输入变量表格Column
 const inputColumns = [
   {
-    title: 'Field',
-    dataIndex: 'iField',
-    key: 'iField'
+    title: 'Name',
+    dataIndex: 'name',
+    key: 'name'
   },
   {
     title: 'Type',
-    dataIndex: 'iType',
-    key: 'iType'
+    dataIndex: 'type',
+    key: 'type'
   },
   {
-    title: 'Measurement ',
-    key: 'iMeasurement',
-    dataIndex: 'iMeasurement'
+    title: 'Shape',
+    key: 'shape',
+    dataIndex: 'shape'
   },
   {
-    title: 'Value',
-    key: 'iValue',
-    dataIndex: 'iValue'
+    title: 'Sample',
+    key: 'sample',
+    dataIndex: 'sample'
   }
 ]
-const objectData = [
-  {
-    key: '1',
-    iField: 'length(cm)',
-    iType: 'double',
-    iMeasurement: 'continuous',
-    iValue: '0,1,2'
-  }
-]
+var outputData = []
 // 目标变量表格Column
-const objectColumns = [
+const outputColumns = [
   {
-    title: 'Field',
-    dataIndex: 'iField',
-    key: 'iField'
+    title: 'Name',
+    dataIndex: 'name',
+    key: 'name'
   },
   {
     title: 'Type',
-    dataIndex: 'iType',
-    key: 'iType'
+    dataIndex: 'type',
+    key: 'type'
   },
   {
-    title: 'Measurement ',
-    key: 'iMeasurement',
-    dataIndex: 'iMeasurement'
-  },
-  {
-    title: 'Value',
-    key: 'iValue',
-    dataIndex: 'iValue'
+    title: 'Shape',
+    key: 'shape',
+    dataIndex: 'shape'
   }
 ]
 export default {
@@ -152,25 +250,109 @@ export default {
   data () {
     return {
       // form: this.$form.createForm(this),
+      model_id: this.$route.query.id,
+      modelName: 'a',
       modelAlgorithm: 'MiningModel(classification)',
       modelEngine: 'PyPMML',
       modelType: 'PMML',
       modelTime: '2022-8-7 23:07',
+      modelDescription: '',
       page: 'info',
       inputData,
       inputColumns,
-      objectData,
-      objectColumns
+      outputData,
+      outputColumns,
+
+      fileList: [],
+      fileChanged: false,
+      form: this.$form.createForm(this),
+      testForm: this.$form.createForm(this)
     }
   },
 
+  beforeMount () {
+    this.getInfo()
+  },
   methods: {
     // handler
+    getInfo () {
+      axios.get(`/ml/model/${this.model_id}`)
+          .then(res => {
+            this.modelName = res.data.name
+            this.modelAlgorithm = res.data.algorithm
+            this.modelEngine = res.data.engine
+            this.modelType = res.data.model_type
+            this.modelTime = res.data.addTime
+            if (res.data.description !== 'undefined') {
+              this.modelDescription = res.data.description
+            }
+            this.inputData = res.data.input
+            for (let i = 0; i < this.inputData.length; i++) {
+              if ('shape' in this.inputData[i]) {
+              this.inputData[i].shape = '[' + String(this.inputData[i].shape) + ']'
+            }
+            }
+            this.outputData = res.data.output
+            for (let i = 0; i < this.outputData.length; i++) {
+              if ('shape' in this.outputData[i]) {
+              this.outputData[i].shape = '[' + String(this.outputData[i].shape) + ']'
+            }
+            }
+            this.fileList = [{ uid: '-1',
+                                name: res.data.file.split('/').slice(-1)[0],
+                                status: 'done',
+                                url: res.data.file }]
+            }).catch(err => {
+            console.log(err)
+            if ('errmsg' in err.response.data) {
+              this.$message.error(err.response.data.errmsg)
+            } else {
+              this.$message.error('read failed.')
+              }
+          })
+    },
+    beforeUpload (file) {
+      this.fileList = [file]
+      this.fileChanged = true
+      return false
+    },
     handleSubmit (e) {
       e.preventDefault()
       this.form.validateFields((err, values) => {
         if (!err) {
-          console.log('Received values of form: ', values)
+          var formData = new FormData()
+          if (this.fileChanged) {
+          formData.append('file', this.fileList[0])
+          }
+          for (var v in values) {
+           if (v !== 'file') {
+            formData.append(v, values[v])
+            }
+          }
+          console.log(formData)
+          // console.log('Received values of form: ', values)
+          // formData.forEach((key, val) => {
+          //   console.log('key %s: value %s', key, val)
+          // })
+          axios({
+            url: `/ml/model/${this.model_id}`,
+            method: 'put',
+            processData: false,
+            headers: {
+               'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            data: formData
+            }).then(res => {
+                this.$message.success('upload successfully.')
+                this.page = 'info'
+              }).catch(err => {
+              console.log(err)
+              if ('errmsg' in err.response.data) {
+                this.$message.error(err.response.data.errmsg)
+              } else {
+                this.$message.error('upload failed.')
+                }
+            })
         }
       })
     },

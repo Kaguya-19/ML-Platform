@@ -168,7 +168,7 @@ export default {
           this.queryParam['name'] = this.filter_name
         }
         if (this.filter_type !== '') {
-          this.queryParam['type'] = this.filter_type
+          this.queryParam['model_type'] = this.filter_type
         }
         return axios.get('/ml/model', {
           params: Object.assign(parameter, this.queryParam)
@@ -198,7 +198,7 @@ export default {
     },
     detail (row) {
       console.log(row.id)
-      this.$router.push('/model/model-test')
+      this.$router.push({ path: '/model/model-test', query: { id: row.id } })
       // row = Object.assign({}, row)
     },
     del (row) {

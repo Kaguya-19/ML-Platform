@@ -14,7 +14,7 @@ import themePluginConfig from '../config/themePluginConfig'
 // mock
 // WARNING: `mockjs` NOT SUPPORT `IE` PLEASE DO NOT USE IN `production` ENV.
 import './mock'
-
+import axios from 'axios'
 import bootstrap from './core/bootstrap'
 import './core/lazy_use' // use lazy load components
 import './utils/filter' // global filter
@@ -28,6 +28,15 @@ Vue.use(VueAxios)
 Vue.component('pro-layout', ProLayout)
 Vue.component('page-container', PageHeaderWrapper)
 Vue.component('page-header-wrapper', PageHeaderWrapper)
+
+axios.defaults.baseURL = 'http://127.0.0.1:8001'
+
+// axios.interceptors.request.use((config) => {
+//   config.headers['X-Requested-With'] = 'XMLHttpRequest'
+//   const regex = /.*csrftoken=([^;.]*).*$/ // 用于从cookie中匹配 csrftoken值
+//   config.headers['X-CSRFToken'] = document.cookie.match(regex) === null ? null : document.cookie.match(regex)[1]
+//   return config
+// })
 
 window.umi_plugin_ant_themeVar = themePluginConfig.theme
 

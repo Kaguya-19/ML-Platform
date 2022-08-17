@@ -541,15 +541,15 @@ const userNav = options => {
       },
       component: 'BasicForm'
     },
-    // {
-    //   name: 'test-model',
-    //   parentId: 10011,
-    //   id: 5,
-    //   meta: {
-    //     title: 'test-model'
-    //   },
-    //   component: 'ModelTest'
-    // },
+    {
+      name: 'test-model',
+      parentId: 10011,
+      id: 5,
+      meta: {
+        title: 'test-model'
+      },
+      component: 'ModelTest'
+    },
     {
       name: 'advanced-form',
       parentId: 10,

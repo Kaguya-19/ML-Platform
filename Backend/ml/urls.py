@@ -4,9 +4,12 @@ from . import views
 
 app_name = 'ml'
 urlpatterns = [
-    path('model/add', views.model_add),
-    path('model/<int:model_id>', views.model_info),
-    path('model/delete/<int:model_id>', views.model_delete),
-    path('test/add', views.test_file_add), # 测试文件添加
-    path('test/task', views.new_task) # 选择好模型开始测试
+    path('model', views.model_api),
+    path('model/<int:model_id>', views.model_info_api),
+    path('test',views.test_api),
+    path('test/<int:tested_file_id>',views.test_info_api),
+    path('test/task', views.new_task), # 选择好模型开始测试
+    # 部署
+    path('service',views.service_api),
+    path('service/<int:service_id>',views.service_info_api),
 ]

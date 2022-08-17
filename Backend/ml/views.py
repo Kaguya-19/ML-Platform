@@ -214,8 +214,10 @@ def model_change(request, model_id):
         resp.status_code = 400
     return resp
 
-def test_file_add_single(file):
-    model = Test_info.objects.create(tested_file=file)
+def test_file_add_single(request):
+    file = request.FILES['tested_file']
+    message = request.POST.get('message')
+    model = Test_info.objects.create(tested_file=file,message=message)
     return model
 
 def test_file_add(request):
@@ -224,11 +226,11 @@ def test_file_add(request):
     else:
         add_mode = request.POST.get('add_mode')
         if add_mode == 'single':
-            test_file_add_single(file = request.FILES['tested_file'])
+            test_file_add_single(request)
             return HttpResponse('单个测试文件上传成功')
         else:
             # TODO：后续可增加查看单一文件功能
-            test_file_add_single(file = request.FILES['tested_file'])
+            test_file_add_single(request)
             return HttpResponse('压缩文件下测试文件上传成功')
 
 from .ml import batch_predict,quick_predict
@@ -280,6 +282,118 @@ def new_task(request, test_file_id, mode = 'single'):
     param_tuple = (test_file_id, model_id, mode)
     new_thread = Thread(target=start_test, args=param_tuple)
     new_thread.start()
+
+# 返回查询的test列表信息
+def test_all(request):
+    try:
+        pageNo = int(request.GET.get('pageNo',1))
+        pageSize = int(request.GET.get('pageSize',10))
+        message = request.GET.get('message','')
+        is_finished = request.GET.get('is_finished',0)
+
+        if is_finished != '':
+            tests = Test_info.objects.filter(is_finished=is_finished).order_by('id').values('message','is_finished','id')
+            print(tests)
+        else:
+            tests = Model_info.objects.order_by('id').values('message','is_finished','id')
+        if message != '':
+            tests = ModelFilter({"message":message}, queryset=tests).qs
+
+        paginator = Paginator(tests, pageSize)
+        context = {'result':{'data':list(paginator.page(pageNo)),
+                             'pageSize':pageSize,
+                             'pageNo':pageNo,
+                             'totalCount':tests.count(),
+                             'totalPage':paginator.num_pages
+                             }}
+        return JsonResponse(context)
+    except:
+        return JsonResponse({"errmsg":"获取信息失败"},status=400)
+
+# 测试成功，多页未测试
+def test_api(request):
+    if request.method == 'POST':
+        return test_file_add(request)
+    elif request.method == 'GET':
+        return test_all(request)
+    else:
+        return JsonResponse({"errmsg":"请求有误"},status=400)
+
+def test_info_api(request, tested_file_id):
+    if request.method == 'DELETE':
+        return test_delete(request, tested_file_id)
+    elif request.method == 'GET':
+        return test_info(request, tested_file_id)
+    elif request.method == 'PUT': # 不要求
+        return test_change(request, tested_file_id)
+    else:
+        return JsonResponse({"errmsg":"请求有误"},status=400)
+
+def test_info(request, tested_file_id):
+    res = dict()
+    willContinue = True
+    try:
+        tested_file = Test_info.objects.get(id=tested_file_id)
+        res = model_to_dict(tested_file)
+        res['tested_file']=BASE_URL+res['tested_file'].url
+        # res['addTime'] = tested_file.addTime.strftime("%Y-%m-%d %H:%M")
+    except:
+        res = {"errmsg":"读取测试信息失败，可能您输入的测试文件已被删除"}
+        willContinue = False
+    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
+    if willContinue:
+        resp.status_code = 200
+    else:
+        resp.status_code = 400
+    return resp
+
+def test_delete(request, tested_file_id):
+    res = dict()
+    willContinue = True
+    try:
+        tested_file = Test_info.objects.get(id=tested_file_id)
+        os.remove(tested_file.tested_file.path)
+        tested_file.delete()
+        {"成功删除测试任务":tested_file_id}
+    except:
+        res = {"errmsg":"删除测试任务失败"}
+        willContinue = False
+    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
+    if willContinue:
+        resp.status_code = 200
+    else:
+        resp.status_code = 400
+    return resp
+
+def test_change(request, tested_file_id):
+    res = dict()
+    willContinue = True
+    print(request.PUT)
+    try:
+        test = Test_info.objects.get(id=tested_file_id)
+        message = request.PUT.get('message')
+        is_finished = request.PUT.get('is_finished',test.is_finished)
+
+        # 此处不能改文件
+        # if 'tested_file' in request.FILES:
+        #     test.file = request.FILES['tested_file']
+        test.message = message
+        test.is_finished = is_finished
+        test.save()  
+    except:
+        res = {"errmsg":"修改测试文件失败"}
+        willContinue = False
+    
+    res['message'] = message
+    res['is_finished'] = test.is_finished
+    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
+    if willContinue:
+        resp.status_code = 200
+    else:
+        resp.status_code = 400
+    return resp
+
+
 
 # 测试
 if __name__ == "__main__":

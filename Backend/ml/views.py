@@ -178,11 +178,16 @@ def model_change(request, model_id):
         description = request.PUT.get('description','')
         model_type = request.PUT.get('model_type')
         model = Model_info.objects.get(id=model_id)
-        if 'file' in request.FILES:
-            model.file = request.FILES['file']
+        if 'file' in request.FILES or model_type != model.model_type:
+            oldfile = model.file
+            if 'file' in request.FILES:
+                model.file = request.FILES['file']
+                model.save()
             info = get_model_info(model.file.path, model_type)
             if "stderr" in info:
                 res = {"errmsg":"模型不合法"}
+                model.file = oldfile
+                model.save()
                 os.remove(model.file.path)
                 willContinue = False
             else:

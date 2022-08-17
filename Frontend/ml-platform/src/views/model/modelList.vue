@@ -199,7 +199,6 @@ export default {
     detail (row) {
       console.log(row.id)
       this.$router.push({ path: '/model/model-test', query: { id: row.id } })
-      // row = Object.assign({}, row)
     },
     del (row) {
       const thi = this
@@ -274,20 +273,6 @@ export default {
     filter () {
       this.$refs.table.refresh(true)
     }
-  },
-  watch: {
-    /*
-      'selectedRows': function (selectedRows) {
-        this.needTotalList = this.needTotalList.map(item => {
-          return {
-            ...item,
-            total: selectedRows.reduce( (sum, val) => {
-              return sum + val[item.dataIndex]
-            }, 0)
-          }
-        })
-      }
-      */
   }
 }
 </script>

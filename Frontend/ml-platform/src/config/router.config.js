@@ -95,6 +95,13 @@ export const asyncRouterMap = [
         meta: { title: 'Deploy', icon: 'table', permission: ['table'] },
         children: [
           {
+            path: '/deploy/deploy-add',
+            name: 'DeployModel',
+            component: () => import('@/views/deploy/serviceAdd'),
+            meta: { title: 'Deploy model', keepAlive: true, permission: ['form'] },
+            hidden: true
+          },
+          {
             path: '/deploy/deploy-list',
             name: 'DeployList',
             component: () => import('@/views/deploy/serviceList'),

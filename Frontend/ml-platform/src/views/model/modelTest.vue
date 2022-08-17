@@ -5,8 +5,7 @@
       <a-menu-item @click="showPage('info')">Model infomation</a-menu-item>
       <a-menu-item @click="showPage('change')">Change model</a-menu-item>
       <a-menu-item @click="showPage('test')">Model test</a-menu-item>
-      <a-menu-item @click="showPage('tasks')">Model tasks</a-menu-item>
-      <a-menu-item @click="showPage('pre')">Pre</a-menu-item>
+      <a-menu-item @click="showPage('tasks')">Model services</a-menu-item>
     </a-menu>
     <!-- 模型概述 -->
     <template v-if="page=='info'">
@@ -181,50 +180,32 @@
     </template>
     <!-- tasks -->
     <template v-if="page=='tasks'">
-    <!-- todo -->
+      <!-- todo -->
+      <a-button @click.stop="deploy">Deploy</a-button>
       <a-row type="flex" :gutter="16">
-        <a-col :span="12">
-          <a-card title="Input" :bordered="false">
-            <a-form>
-              <a-form-item v-for="(data, index) in inputData" :key="index" :label="data.iField">
-                <a-input/>
-              </a-form-item>
-              <a-form-item :wrapper-col="{ span: 14, offset: 15 }">
-                <a-button @click.prevent="onSubmit">Clear</a-button>
-                <a-button type="primary" @click="reset" style="margin-left: 16px">Submit</a-button>
-              </a-form-item>
-            </a-form>
-          </a-card>
-        </a-col>
-        <a-col :span="12">
-          <a-card title="Output" :bordered="false">
-            <textarea style="border: none">
-              Here is the outcome!
-            </textarea>
-          </a-card>
-        </a-col>
-      </a-row>
-    </template>
-    <!-- pre -->
-    <template v-if="page=='pre'">
-      <a-row type="flex" :gutter="16">
-        <a-col :span="12">
-          <a-card title="Input" :bordered="false">
-            <a-textarea
-              rows="6"
-              v-model="preStr"
-            />
-            <!-- <a-button @click.prevent="reset">Clear</a-button> -->
-            <a-button type="primary" @click.stop="submitPre" style="margin-left: 16px">Submit</a-button>
-          </a-card>
-        </a-col>
-        <a-col :span="12">
-          <a-card title="Output" :bordered="false">
-            <textarea style="border: none">
-              Here is the outcome!
-            </textarea>
-          </a-card>
-        </a-col>
+        <s-table
+          ref="table"
+          size="default"
+          :columns="columns"
+          :data="loadData"
+          :alert="{ show: true, clear: true }"
+          :rowSelection="{ selectedRowKeys: this.selectedRowKeys, onChange: this.onSelectChange }"
+          :rowKey="record => record.id"
+        >
+          <template v-for="(col, index) in columns" v-if="col.scopedSlots" :slot="col.dataIndex" slot-scope="text">
+            <div :key="index">
+              <template>{{ text }}</template>
+            </div>
+          </template>
+          <template slot="action" slot-scope="text, record">
+            <div class="editable-row-operations">
+              <span>
+                <a class="edit" @click="() => detail(record)">详情</a>
+              </span>
+            </div>
+          </template>
+        </s-table>
+
       </a-row>
     </template>
   </page-header-wrapper>
@@ -232,7 +213,7 @@
 
 <script>
 import axios from 'axios'
-
+import { STable } from '@/components'
 var inputData = []
 // 输入变量表格Column
 const inputColumns = [
@@ -278,6 +259,9 @@ const outputColumns = [
 ]
 export default {
   name: 'ModelTest',
+  components: {
+    STable
+  },
   data () {
     return {
       // form: this.$form.createForm(this),
@@ -303,7 +287,58 @@ export default {
       isFile: {},
       isJSON: false,
       jsonStr: 'aa',
-      testFileList: []
+      testFileList: [],
+
+      columns: [
+        {
+          title: 'Service number',
+          dataIndex: 'id',
+          key: 'id'
+        },
+        {
+          title: 'Name',
+          dataIndex: 'name',
+          key: 'name'
+        },
+        // {
+        //   title: 'Description',
+        //   dataIndex: 'description'
+        // },
+        {
+          title: 'Status',
+          dataIndex: 'status',
+          key: 'status'
+        },
+        // {
+        //   title: 'Added time',
+        //   dataIndex: 'time'
+        // },
+        {
+          title: 'Type',
+          dataIndex: 'model_type'
+        },
+        {
+          title: 'Operation',
+          table: 'Operation',
+          dataIndex: 'action',
+          scopedSlots: { customRender: 'action' }
+        }
+      ],
+      // 加载数据方法 必须为 Promise 对象
+      loadData: parameter => {
+        return axios.get('/ml/service', {
+          params: Object.assign(parameter, { 'mod': this.model_id })
+        }).then(res => {
+            return res.data.result
+            }).catch(err => {
+            console.log(err)
+            if ('errmsg' in err.response.data) {
+              this.$message.error(err.response.data.errmsg)
+            } else {
+              this.$message.error('read failed.')
+              }
+      })
+      }
     }
   },
 
@@ -429,13 +464,17 @@ export default {
           }
           console.log(values) // TODO: waiting anime
           axios({
-            url: `/ml/model/${this.model_id}`, // TODO
+            url: `/ml/test`, // TODO
             method: 'post',
             processData: false,
             headers: {
                'Content-Type': 'application/x-www-form-urlencoded'
             },
-            data: formData
+            data: {
+              'input': formData,
+              'mod': this.model_id,
+              'test_type': 'fast'
+            }
             }).then(res => {
                 this.$message.success('upload successfully.')
                 this.testRes = JSON.stringify(res.data)
@@ -459,13 +498,17 @@ export default {
       }
       console.log(jsonJson)
       axios({
-            url: `/ml/model/${this.model_id}`, // TODO
+            url: `/ml/test`,
             method: 'post',
             processData: false,
             headers: {
                'Content-Type': 'application/x-www-form-urlencoded'
             },
-            data: jsonJson
+            data: {
+              'input': jsonJson,
+              'mod': this.model_id,
+              'test_type': 'fast'
+            }
             }).then(res => {
                 this.$message.success('upload successfully.')
                 this.testRes = JSON.stringify(res.data)
@@ -482,6 +525,14 @@ export default {
       this.page = key
       this.getInfo()
       console.log('page:', this.page)
+    },
+    deploy () {
+      this.$router.push({ path: '/deploy/deploy-add', query: { id: this.model_id } })
+    },
+    detail (row) {
+      console.log(row.id)
+      this.$router.push({ path: '/model/service-test', query: { id: row.id } })
+      // row = Object.assign({}, row)
     }
   }
 }

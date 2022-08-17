@@ -12,10 +12,11 @@
         <a-table :columns="funcColumns" :data-source="funcData">
         </a-table>
       </a-card>
-      <a-card :bordered="false" title="Copy" style="margin-top: 20px">
+      <!-- TODO -->
+      <!-- <a-card :bordered="false" title="Copy" style="margin-top: 20px">
         <a-table :columns="copyColumns" :data-source="copyData">
         </a-table>
-      </a-card>
+      </a-card> -->
     </template>
     <!-- 部署测试 -->
     <template v-if="page=='test'">
@@ -24,41 +25,7 @@
 </template>
 
 <script>
-const funcData = [
-  {
-    key: '1',
-    funcName: 'predict',
-    invokeTime: 2,
-    avgResTime: 205.0,
-    medResTime: 205.0,
-    minResTime: 12.0,
-    maxResTime: 398.0,
-    firVisTime: '2019-09-28 17:30:59',
-    latVisTime: '2019-09-28 17:31:40'
-  },
-    {
-    key: '2',
-    funcName: 'predict',
-    invokeTime: 2,
-    avgResTime: 205.0,
-    medResTime: 205.0,
-    minResTime: 12.0,
-    maxResTime: 398.0,
-    firVisTime: '2019-09-28 17:30:59',
-    latVisTime: '2019-09-28 17:31:40'
-  },
-    {
-    key: '3',
-    funcName: 'predict',
-    invokeTime: 2,
-    avgResTime: 205.0,
-    medResTime: 205.0,
-    minResTime: 12.0,
-    maxResTime: 398.0,
-    firVisTime: '2019-09-28 17:30:59',
-    latVisTime: '2019-09-28 17:31:40'
-  }
-]
+const funcData = []
 // 输入变量表格Column
 const funcColumns = [
   {
@@ -114,11 +81,11 @@ const copyData = [
 const copyColumns = [
   {
     title: 'Copy',
-    dataIndex: 'copyName',
-    key: 'copyName'
+    dataIndex: 'name',
+    key: 'name'
   },
   {
-    title: 'Status',
+    title: 'status',
     dataIndex: 'status',
     key: 'status'
   },
@@ -145,15 +112,6 @@ export default {
   },
 
   methods: {
-    // handler
-    handleSubmit (e) {
-      e.preventDefault()
-      this.form.validateFields((err, values) => {
-        if (!err) {
-          console.log('Received values of form: ', values)
-        }
-      })
-    },
     showPage (key) {
       this.page = key
       console.log('page:', this.page)

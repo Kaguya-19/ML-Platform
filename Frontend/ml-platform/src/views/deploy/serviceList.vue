@@ -5,7 +5,7 @@
         <a-form layout="inline">
           <a-row :gutter="48">
             <a-col :md="8" :sm="24">
-              <a-form-item label="Name">
+              <a-form-item>
                 <a-input placeholder="" v-model="filter_name"/>
               </a-form-item>
             </a-col>
@@ -15,6 +15,16 @@
                   <a-select-option value="">All</a-select-option>
                   <a-select-option value="onnx">onnx</a-select-option>
                   <a-select-option value="pmml">pmml</a-select-option>
+                </a-select>
+              </a-form-item>
+            </a-col>
+            <a-col :md="8" :sm="24">
+              <a-form-item label="Status">
+                <a-select placeholder="请选择" default-value="" v-model="filter_type">
+                  <a-select-option value="">All</a-select-option>
+                  <a-select-option value="undeployed">undeployed</a-select-option>
+                  <a-select-option value="deployed">deployed</a-select-option>
+                  <a-select-option value="paused">paused</a-select-option>
                 </a-select>
               </a-form-item>
             </a-col>
@@ -63,8 +73,17 @@
       </div>
 
       <div class="table-operator">
-        <a-button type="primary" icon="plus" @click="add">新建</a-button>
         <a-dropdown v-if="selectedRowKeys.length > 0">
+          <a-button style="margin-left: 8px" @click="deploys">
+            批量部署
+          </a-button>
+          <!-- TODO:debug -->
+          <a-button style="margin-left: 8px" @click="pauses">
+            批量暂停
+          </a-button>
+          <a-button style="margin-left: 8px" @click="undeploys">
+            批量停止
+          </a-button>
           <a-button style="margin-left: 8px" @click="dels">
             批量删除
           </a-button>
@@ -80,15 +99,9 @@
         :rowSelection="{ selectedRowKeys: this.selectedRowKeys, onChange: this.onSelectChange }"
         :rowKey="record => record.id"
       >
-        <template v-for="(col, index) in columns" v-if="col.scopedSlots" :slot="col.dataIndex" slot-scope="text, record">
+        <template v-for="(col, index) in columns" v-if="col.scopedSlots" :slot="col.dataIndex" slot-scope="text">
           <div :key="index">
-            <a-input
-              v-if="record.editable"
-              style="margin: -5px 0"
-              :value="text"
-              @change="e => handleChange(e.target.value, record.key, col, record)"
-            />
-            <template v-else>{{ text }}</template>
+            <template>{{ text }}</template>
           </div>
         </template>
 
@@ -97,6 +110,9 @@
             <span>
               <a class="edit" @click="() => detail(record)">详情</a>
               <a-divider type="vertical" />
+              <a class="delete" @click="() => deploy(record)" v-if="record.status!='deployed'">部署</a>
+              <a class="delete" @click="() => pause(record)" v-if="record.status!='paused'">暂停</a>
+              <a class="delete" @click="() => undeploy(record)" v-if="record.status!='undeployed'">停止</a>
               <a class="delete" @click="() => del(record)">删除</a>
             </span>
           </div>
@@ -120,6 +136,7 @@ export default {
     return {
       filter_name: '',
       filter_type: '',
+      filter_status: '',
 
       // 高级搜索 展开/关闭
       advanced: false,
@@ -128,7 +145,7 @@ export default {
       // 表头
       columns: [
         {
-          title: 'Model number',
+          title: 'Service number',
           dataIndex: 'id',
           key: 'id'
         },
@@ -141,11 +158,11 @@ export default {
         //   title: 'Description',
         //   dataIndex: 'description'
         // },
-        // {
-        //   title: 'Status',
-        //   dataIndex: 'status',
-        //   key: 'status'
-        // },
+        {
+          title: 'Status',
+          dataIndex: 'status',
+          key: 'status'
+        },
         // {
         //   title: 'Added time',
         //   dataIndex: 'time'
@@ -170,7 +187,10 @@ export default {
         if (this.filter_type !== '') {
           this.queryParam['model_type'] = this.filter_type
         }
-        return axios.get('/ml/model', {
+        if (this.filter_status !== '') {
+          this.queryParam['status'] = this.filter_status
+        }
+        return axios.get('/ml/service', {
           params: Object.assign(parameter, this.queryParam)
         }).then(res => {
             return res.data.result
@@ -189,16 +209,13 @@ export default {
     }
   },
   methods: {
-    add () {
-      this.$router.push('/model/model-add')
-    },
     handleChange (value, key, column, record) {
       console.log(value, key, column)
       record[column.dataIndex] = value
     },
     detail (row) {
       console.log(row.id)
-      this.$router.push({ path: '/model/model-test', query: { id: row.id } })
+      this.$router.push({ path: '/deploy/deploy-test', query: { id: row.id } })
       // row = Object.assign({}, row)
     },
     del (row) {
@@ -211,7 +228,7 @@ export default {
         cancelText: '取消',
         onOk () {
           axios({
-            url: `/ml/model/${row.id}`,
+            url: `/ml/service/${row.id}`,
             method: 'delete',
             processData: false
             }).then(res => {
@@ -241,7 +258,7 @@ export default {
           console.log(thi.selectedRows)
           for (var i = 0; i < thi.selectedRows.length; i++) {
           await axios({
-            url: `/ml/model/${thi.selectedRows[i].id}`,
+            url: `/ml/service/${thi.selectedRows[i].id}`,
             method: 'delete',
             processData: false
             }).catch(err => {
@@ -250,6 +267,186 @@ export default {
                 thi.$message.error(err.response.data.errmsg)
               } else {
                 thi.$message.error('delete failed.')
+                }
+            })
+          }
+          thi.resetForm()
+          thi.selectedRows = []
+          thi.$refs.table.refresh(true)
+        }
+      })
+    },
+    pause (row) {
+      const thi = this
+      this.$confirm({
+        title: '警告',
+        content: `真的要暂停 ${row.name} 吗?`,
+        okText: '暂停',
+        okType: 'danger',
+        cancelText: '取消',
+        onOk () {
+          axios({
+            url: `/ml/service/${row.id}`,
+            method: 'put',
+            processData: false,
+            data: { 'status': 'paused' }
+            }).then(res => {
+                thi.$message.success('pause successfully.')
+                thi.resetForm()
+                thi.$refs.table.refresh(true)
+              }).catch(err => {
+              console.log(err)
+              if ('errmsg' in err.response.data) {
+                thi.$message.error(err.response.data.errmsg)
+              } else {
+                thi.$message.error('pause failed.')
+                }
+            })
+        }
+      })
+    },
+    pauses () {
+      const thi = this
+      this.$confirm({
+        title: '警告',
+        content: `真的要暂停这些吗?`,
+        okText: '暂停',
+        okType: 'danger',
+        cancelText: '取消',
+        async onOk () {
+          console.log(thi.selectedRows)
+          for (var i = 0; i < thi.selectedRows.length; i++) {
+          await axios({
+            url: `/ml/service/${thi.selectedRows[i].id}`,
+            method: 'put',
+            processData: false,
+            data: { 'status': 'paused' }
+            }).catch(err => {
+              console.log(err)
+              if ('errmsg' in err.response.data) {
+                thi.$message.error(err.response.data.errmsg)
+              } else {
+                thi.$message.error('delete failed.')
+                }
+            })
+          }
+          thi.resetForm()
+          thi.selectedRows = []
+          thi.$refs.table.refresh(true)
+        }
+      })
+    },
+    deploy (row) {
+      const thi = this
+      this.$confirm({
+        title: '警告',
+        content: `真的要部署 ${row.name} 吗?`,
+        okText: '暂停',
+        okType: 'danger',
+        cancelText: '取消',
+        onOk () {
+          axios({
+            url: `/ml/service/${row.id}`,
+            method: 'put',
+            processData: false,
+            data: { 'status': 'deployed' }
+            }).then(res => {
+                thi.$message.success('deploy successfully.')
+                thi.resetForm()
+                thi.$refs.table.refresh(true)
+              }).catch(err => {
+              console.log(err)
+              if ('errmsg' in err.response.data) {
+                thi.$message.error(err.response.data.errmsg)
+              } else {
+                thi.$message.error('deploy failed.')
+                }
+            })
+        }
+      })
+    },
+    deploys () {
+      const thi = this
+      this.$confirm({
+        title: '警告',
+        content: `真的要部署这些吗?`,
+        okText: '部署',
+        okType: 'danger',
+        cancelText: '取消',
+        async onOk () {
+          console.log(thi.selectedRows)
+          for (var i = 0; i < thi.selectedRows.length; i++) {
+          await axios({
+            url: `/ml/service/${thi.selectedRows[i].id}`,
+            method: 'put',
+            processData: false,
+            data: { 'status': 'deployed' }
+            }).catch(err => {
+              console.log(err)
+              if ('errmsg' in err.response.data) {
+                thi.$message.error(err.response.data.errmsg)
+              } else {
+                thi.$message.error('deploy failed.')
+                }
+            })
+          }
+          thi.resetForm()
+          thi.selectedRows = []
+          thi.$refs.table.refresh(true)
+        }
+      })
+    },
+    stop (row) {
+      const thi = this
+      this.$confirm({
+        title: '警告',
+        content: `真的要停止 ${row.name} 吗?`,
+        okText: '停止',
+        okType: 'danger',
+        cancelText: '取消',
+        onOk () {
+          axios({
+            url: `/ml/service/${row.id}`,
+            method: 'put',
+            processData: false,
+            data: { 'status': 'undeployed' }
+            }).then(res => {
+                thi.$message.success('undeploy successfully.')
+                thi.resetForm()
+                thi.$refs.table.refresh(true)
+              }).catch(err => {
+              console.log(err)
+              if ('errmsg' in err.response.data) {
+                thi.$message.error(err.response.data.errmsg)
+              } else {
+                thi.$message.error('undeploy failed.')
+                }
+            })
+        }
+      })
+    },
+    stops () {
+      const thi = this
+      this.$confirm({
+        title: '警告',
+        content: `真的要部署这些吗?`,
+        okText: '部署',
+        okType: 'danger',
+        cancelText: '取消',
+        async onOk () {
+          console.log(thi.selectedRows)
+          for (var i = 0; i < thi.selectedRows.length; i++) {
+          await axios({
+            url: `/ml/service/${thi.selectedRows[i].id}`,
+            method: 'put',
+            processData: false,
+            data: { 'status': 'undeployed' }
+            }).catch(err => {
+              console.log(err)
+              if ('errmsg' in err.response.data) {
+                thi.$message.error(err.response.data.errmsg)
+              } else {
+                thi.$message.error('undeploy failed.')
                 }
             })
           }
@@ -270,24 +467,11 @@ export default {
     resetForm () {
       this.filter_name = ''
       this.filter_type = ''
+      this.filter_status = ''
     },
     filter () {
       this.$refs.table.refresh(true)
     }
-  },
-  watch: {
-    /*
-      'selectedRows': function (selectedRows) {
-        this.needTotalList = this.needTotalList.map(item => {
-          return {
-            ...item,
-            total: selectedRows.reduce( (sum, val) => {
-              return sum + val[item.dataIndex]
-            }, 0)
-          }
-        })
-      }
-      */
   }
 }
 </script>

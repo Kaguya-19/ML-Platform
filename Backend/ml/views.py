@@ -1,4 +1,5 @@
 import threading
+from turtle import Turtle
 
 from django.shortcuts import render
 from django.http import JsonResponse, HttpResponse
@@ -6,7 +7,7 @@ from django.forms.models import model_to_dict
 from django.core.paginator import  Paginator
 import datetime
 # Create your views here.
-from .models import Model_info,Test_info
+from .models import Model_info,Test_info,Service_info
 from .filters import ModelFilter
 
 def model_add_singlemodel(name,description,model_type,file):
@@ -215,19 +216,40 @@ def model_change(request, model_id):
     return resp
 
 def test_file_add_single(request):
-    file = request.FILES['tested_file']
-    message = request.POST.get('message')
-    model = Test_info.objects.create(tested_file=file,message=message)
-    return model
+    try:
+        tested_file = request.FILES['tested_file']
+        message = request.POST.get('message')
+        model_id = request.POST.get('model_id',None)
+        service_id = request.POST.get('service_id',None)
+        test = Test_info.objects.create(tested_file=tested_file,message=message)
+    except:
+        os.remove(test.tested_file.path)
+        test.delete()
+        return HttpResponse('单个测试文件上传失败,请检查file/message/model_id/service_id')
+    try:
+        if model_id != None:
+            test.mod = Model_info.objects.get(id=model_id) 
+    except:
+        os.remove(test.tested_file.path)
+        test.delete()
+        return HttpResponse('单个测试文件上传失败，请检查model_id')
+    try:
+        if service_id != None:
+            test.service = Service_info.objects.get(id=service_id)
+    except:
+        os.remove(test.tested_file.path)
+        test.delete()
+        return HttpResponse('单个测试文件上传失败，请检查service_id')       
+    test.save()
+    return HttpResponse('单个测试文件上传成功')
 
 def test_file_add(request):
     if request.method != 'POST':
         return HttpResponse("上传测试文件失败")
     else:
         add_mode = request.POST.get('add_mode')
-        if add_mode == 'single':
-            test_file_add_single(request)
-            return HttpResponse('单个测试文件上传成功')
+        if add_mode == 'single':           
+            return test_file_add_single(request)
         else:
             # TODO：后续可增加查看单一文件功能
             test_file_add_single(request)
@@ -292,10 +314,10 @@ def test_all(request):
         is_finished = request.GET.get('is_finished',0)
 
         if is_finished != '':
-            tests = Test_info.objects.filter(is_finished=is_finished).order_by('id').values('message','is_finished','id')
+            tests = Test_info.objects.filter(is_finished=is_finished).order_by('id').values('message','is_finished','id','recent_modified_time')
             print(tests)
         else:
-            tests = Model_info.objects.order_by('id').values('message','is_finished','id')
+            tests = Model_info.objects.order_by('id').values('message','is_finished','id','recent_modified_time')
         if message != '':
             tests = ModelFilter({"message":message}, queryset=tests).qs
 
@@ -333,8 +355,8 @@ def test_info(request, tested_file_id):
     res = dict()
     willContinue = True
     try:
-        tested_file = Test_info.objects.get(id=tested_file_id)
-        res = model_to_dict(tested_file)
+        test = Test_info.objects.get(id=tested_file_id)
+        res = model_to_dict(test)
         res['tested_file']=BASE_URL+res['tested_file'].url
         # res['addTime'] = tested_file.addTime.strftime("%Y-%m-%d %H:%M")
     except:
@@ -365,6 +387,7 @@ def test_delete(request, tested_file_id):
         resp.status_code = 400
     return resp
 
+from django.utils import timezone
 def test_change(request, tested_file_id):
     res = dict()
     willContinue = True
@@ -377,6 +400,7 @@ def test_change(request, tested_file_id):
         # 此处不能改文件
         # if 'tested_file' in request.FILES:
         #     test.file = request.FILES['tested_file']
+        test.recent_modified_time = timezone.now()
         test.message = message
         test.is_finished = is_finished
         test.save()  
@@ -394,6 +418,147 @@ def test_change(request, tested_file_id):
     return resp
 
 
+def service_api(request):
+    if request.method == 'POST':
+        return service_add(request)
+    elif request.method == 'GET':
+        return service_all(request)
+    else:
+        return JsonResponse({"errmsg":"请求有误"},status=400)
+
+def service_info_api(request, service_id):
+    if request.method == 'DELETE':
+        return service_delete(request, service_id)
+    elif request.method == 'GET':
+        return service_info(request, service_id)
+    elif request.method == 'PUT':
+        # 暂停，启动等操作
+        return service_change(request, service_id)
+    else:
+        return JsonResponse({"errmsg":"请求有误"},status=400)
+
+def service_add(request):
+    res = dict()
+    willContinue = True
+    if request.method != 'POST':
+        res = {"errmsg":"部署失败"}
+        willContinue = False
+    else:
+        try:
+            name = request.POST.get('name')
+            description = request.POST.get('description','')
+            model_id = request.POST.get('model_id')
+            service = Service_info.objects.create(name=name,description=description,mod = Model_info.objects.get(id=model_id))
+
+        except:
+            res = {"errmsg":"部署失败"}
+            willContinue = False
+    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
+    if willContinue:
+        resp.status_code = 200
+    else:
+        resp.status_code = 400
+    return resp
+
+def service_all(request):
+    try:
+        pageNo = int(request.GET.get('pageNo',1))
+        pageSize = int(request.GET.get('pageSize',10))
+
+        name = request.GET.get('name','')
+        model_id = request.GET.get('model_id',-1)
+        status = request.GET.get('status',-1)
+
+        if model_id != -1:
+            services = Service_info.objects.filter(model__id = model_id,).order_by('id').values('name','description','id','create_time',
+                                                                        'recent_modified_time','status','average_use_time','use_times')
+            print(services)
+        else:
+            # 不进行模型的筛选
+            services = Service_info.objects.order_by('id').values('name','description','id','create_time',
+                                                                'recent_modified_time','status','average_use_time','use_times')
+
+        if name != '':
+            services = ModelFilter({"name":name}, queryset=services).qs
+        if status != -1:
+            services = ModelFilter({"status":status}, queryset=services).qs
+
+        paginator = Paginator(services, pageSize)
+        context = {'result':{'data':list(paginator.page(pageNo)),
+                             'pageSize':pageSize,
+                             'pageNo':pageNo,
+                             'totalCount':services.count(),
+                             'totalPage':paginator.num_pages
+                             }}
+        return JsonResponse(context)
+    except:
+        return JsonResponse({"errmsg":"获取部署信息失败"},status=400)
+
+def service_delete(request, service_id):
+    res = dict()
+    willContinue = True
+    try:
+        service = Service_info.objects.get(id=service_id)
+        # TODO 这里没测试有没有删除干净，包括文件
+        service.delete()
+        {"成功删除部署":service_id}
+    except:
+        res = {"errmsg":"删除部署失败"}
+        willContinue = False
+    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
+    if willContinue:
+        resp.status_code = 200
+    else:
+        resp.status_code = 400
+    return resp    
+
+def service_info(request, service_id):
+    res = dict()
+    willContinue = True
+    try:
+        service = Service_info.objects.get(id=service_id)
+        res = model_to_dict(service)
+        # res['tested_file']=BASE_URL+res['tested_file'].url
+        # res['addTime'] = tested_file.addTime.strftime("%Y-%m-%d %H:%M")
+    except:
+        res = {"errmsg":"读取测试信息失败，可能您输入的测试文件已被删除"}
+        willContinue = False
+    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
+    if willContinue:
+        resp.status_code = 200
+    else:
+        resp.status_code = 400
+    return resp   
+
+def service_change(request, service_id):
+    res = dict()
+    willContinue = True
+    print(request.PUT)
+    try:
+        service = Service_info.objects.get(id=service_id)
+        name = request.PUT.get('name',service.name)
+        description = request.PUT.get('description',service.description)
+        # TODO 改了状态后停止/启动/删除的反应
+        status = request.PUT.get('status',service.status)
+
+        service.recent_modified_time = timezone.now()
+        service.name = name
+        service.description = description
+        service.status = status
+
+        service.save()  
+        res = model_to_dict(service)
+    except:
+        res = {"errmsg":"修改测试文件失败"}
+        willContinue = False
+    
+
+    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
+    if willContinue:
+        resp.status_code = 200
+    else:
+        resp.status_code = 400
+    return resp    
 
 # 测试
 if __name__ == "__main__":

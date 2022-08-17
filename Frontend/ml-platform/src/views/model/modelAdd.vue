@@ -92,8 +92,7 @@ export default {
       this.form.validateFields((err, values) => {
         if (!err) {
           var formData = new FormData()
-          console.log(this.form)
-          formData.append('file', this.fileList[0])
+          formData.append('file', values['file'].file)
           for (var v in values) {
            if (v !== 'file') {
             formData.append(v, values[v])

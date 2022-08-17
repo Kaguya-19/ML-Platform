@@ -95,12 +95,6 @@ export const asyncRouterMap = [
         meta: { title: 'Deploy', icon: 'table', permission: ['table'] },
         children: [
           {
-            path: '/deploy/deploy-add',
-            name: 'DeployAdd',
-            component: () => import('@/views/deploy/serviceAdd'),
-            meta: { title: 'Add service', keepAlive: true, permission: ['table'] }
-          },
-          {
             path: '/deploy/deploy-list',
             name: 'DeployList',
             component: () => import('@/views/deploy/serviceList'),
@@ -110,7 +104,8 @@ export const asyncRouterMap = [
             path: '/deploy/deploy-test',
             name: 'DeployTest',
             component: () => import('@/views/deploy/serviceTest'),
-            meta: { title: 'Test service', keepAlive: true, permission: ['table'] }
+            meta: { title: 'Test service', keepAlive: true, permission: ['table'] },
+            hidden: true
           }
         ]
       }

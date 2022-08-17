@@ -124,11 +124,45 @@
     <template v-if="page=='test'">
       <a-row type="flex" :gutter="16">
         <a-col :span="12">
-          <a-card title="Input" :bordered="false">
-            <a-form @submit="onSubmit" :form="testForm" >
+          <a-card title="Input" :bordered="false" v-if="isJSON">
+            <template #extra><a @click.stop="toJSON">Form</a></template>
+            <a-textarea
+              rows="6"
+              v-model="jsonStr"
+            />
+            <!-- <a-button @click.prevent="reset">Clear</a-button> -->
+            <a-button type="primary" @click.stop="submitJSON" style="margin-left: 16px">Submit</a-button>
+          </a-card>
+          <a-card title="Input" :bordered="false" v-else>
+            <template #extra><a @click.stop="toJSON">JSON</a></template>
+            <a-form @submit="testFormSubmit" :form="form">
               <a-form-item v-for="(data, index) in inputData" :key="index" :label="data.name+' (Type:'+data.type+')'">
                 <!-- todo:upload -->
-                <a-input/>
+                <a-switch
+                  :check="isFile[data.name]"
+                  checkedChildren="File"
+                  unCheckedChildren="Text"
+                  @change="chooseForT(data.name)"/>
+                <a-upload
+                  :file-list="testFileList"
+                  :before-upload="testBeforeUpload"
+                  :multiplt="false"
+                  :max-count="1"
+                  v-decorator="[data.name, { rules: [{required: true, message: 'Please give input'}]}]"
+                  v-if="isFile[data.name]"
+                >
+                  <a-button> <a-icon type="upload" /> Select File </a-button>
+                </a-upload>
+                <a-textarea
+                  rows="2"
+                  v-decorator="[data.name, { rules: [{required: true, message: 'Please give input'}]}]"
+                  v-else
+                />
+                <!-- <a-textarea
+                  rows="2"
+                  v-decorator="[data.name, { rules: [{required: true, message: 'Please give input'}]}]"
+                  v-else
+                /> -->
               </a-form-item>
               <a-form-item :wrapper-col="{ span: 14, offset: 15 }">
                 <!-- <a-button @click.prevent="reset">Clear</a-button> -->
@@ -139,8 +173,7 @@
         </a-col>
         <a-col :span="12">
           <a-card title="Output" :bordered="false">
-            <textarea style="border: none">
-              Here is the outcome!
+            <textarea style="border: none" :value="testRes">
             </textarea>
           </a-card>
         </a-col>
@@ -148,6 +181,7 @@
     </template>
     <!-- tasks -->
     <template v-if="page=='tasks'">
+    <!-- todo -->
       <a-row type="flex" :gutter="16">
         <a-col :span="12">
           <a-card title="Input" :bordered="false">
@@ -176,15 +210,12 @@
       <a-row type="flex" :gutter="16">
         <a-col :span="12">
           <a-card title="Input" :bordered="false">
-            <a-form>
-              <a-form-item v-for="(data, index) in inputData" :key="index" :label="data.iField">
-                <a-input/>
-              </a-form-item>
-              <a-form-item :wrapper-col="{ span: 14, offset: 15 }">
-                <a-button @click.prevent="onSubmit">Clear</a-button>
-                <a-button type="primary" @click="reset" style="margin-left: 16px">Submit</a-button>
-              </a-form-item>
-            </a-form>
+            <a-textarea
+              rows="6"
+              v-model="preStr"
+            />
+            <!-- <a-button @click.prevent="reset">Clear</a-button> -->
+            <a-button type="primary" @click.stop="submitPre" style="margin-left: 16px">Submit</a-button>
           </a-card>
         </a-col>
         <a-col :span="12">
@@ -266,7 +297,13 @@ export default {
       fileList: [],
       fileChanged: false,
       form: this.$form.createForm(this),
-      testForm: this.$form.createForm(this)
+      testForm: this.$form.createForm(this),
+      testRes: 'Here is result!',
+
+      isFile: {},
+      isJSON: false,
+      jsonStr: 'aa',
+      testFileList: []
     }
   },
 
@@ -274,6 +311,14 @@ export default {
     this.getInfo()
   },
   methods: {
+    chooseForT (checked) {
+      this.isFile[checked] = !this.isFile[checked]
+      this.isJSON = !this.isJSON
+      this.isJSON = !this.isJSON
+    },
+    toJSON () {
+      this.isJSON = !this.isJSON
+      },
     // handler
     getInfo () {
       axios.get(`/ml/model/${this.model_id}`)
@@ -287,11 +332,18 @@ export default {
               this.modelDescription = res.data.description
             }
             this.inputData = res.data.input
+            var jsonJson = {}
+            this.isFile = []
+            this.testFileList = []
+            this.testFileDic = {}
             for (let i = 0; i < this.inputData.length; i++) {
+              jsonJson[this.inputData[i].name] = ''
+              this.isFile[this.inputData[i].name] = false
               if ('shape' in this.inputData[i]) {
               this.inputData[i].shape = '[' + String(this.inputData[i].shape) + ']'
             }
             }
+            this.jsonStr = JSON.stringify(jsonJson)
             this.outputData = res.data.output
             for (let i = 0; i < this.outputData.length; i++) {
               if ('shape' in this.outputData[i]) {
@@ -316,20 +368,26 @@ export default {
       this.fileChanged = true
       return false
     },
+    testBeforeUpload (file) {
+      this.testFileList.push(file)
+      this.fileChanged = true
+      return false
+    },
     handleSubmit (e) {
       e.preventDefault()
       this.form.validateFields((err, values) => {
         if (!err) {
           var formData = new FormData()
+          console.log(values)
           if (this.fileChanged) {
-          formData.append('file', this.fileList[0])
+          formData.append('file', values['file'].file)
           }
           for (var v in values) {
            if (v !== 'file') {
             formData.append(v, values[v])
             }
           }
-          console.log(formData)
+          console.log(values)
           // console.log('Received values of form: ', values)
           // formData.forEach((key, val) => {
           //   console.log('key %s: value %s', key, val)
@@ -344,7 +402,7 @@ export default {
             data: formData
             }).then(res => {
                 this.$message.success('upload successfully.')
-                this.page = 'info'
+                this.$router.go(0)
               }).catch(err => {
               console.log(err)
               if ('errmsg' in err.response.data) {
@@ -356,8 +414,73 @@ export default {
         }
       })
     },
+    testFormSubmit (e) {
+      e.preventDefault()
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          var formData = new FormData()
+          console.log(values)
+          for (var v in values) {
+           if (this.isFile[v]) {
+            formData.append(v, values[v].file)
+           } else {
+            formData.append(v, values[v])
+           }
+          }
+          console.log(values) // TODO: waiting anime
+          axios({
+            url: `/ml/model/${this.model_id}`, // TODO
+            method: 'post',
+            processData: false,
+            headers: {
+               'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            data: formData
+            }).then(res => {
+                this.$message.success('upload successfully.')
+                this.testRes = JSON.stringify(res.data)
+              }).catch(err => {
+              console.log(err)
+              if ('errmsg' in err.response.data) {
+                this.$message.error(err.response.data.errmsg)
+              } else {
+                this.$message.error('upload failed.')
+                }
+            })
+        }
+      })
+    },
+    submitJSON () {
+      try {
+      var jsonJson = JSON.parse(this.jsonStr)
+      } catch (err) {
+        console.log(err)
+        this.$message.error('json error.')
+      }
+      console.log(jsonJson)
+      axios({
+            url: `/ml/model/${this.model_id}`, // TODO
+            method: 'post',
+            processData: false,
+            headers: {
+               'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            data: jsonJson
+            }).then(res => {
+                this.$message.success('upload successfully.')
+                this.testRes = JSON.stringify(res.data)
+              }).catch(err => {
+              console.log(err)
+              if ('errmsg' in err.response.data) {
+                this.$message.error(err.response.data.errmsg)
+              } else {
+                this.$message.error('upload failed.')
+                }
+            })
+    },
     showPage (key) {
       this.page = key
+      this.getInfo()
       console.log('page:', this.page)
     }
   }

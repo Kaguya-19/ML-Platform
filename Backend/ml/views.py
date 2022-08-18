@@ -2,10 +2,11 @@ import threading
 from turtle import Turtle
 
 from django.shortcuts import render
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse
 from django.forms.models import model_to_dict
 from django.core.paginator import  Paginator
 import datetime
+from django.utils import timezone
 # Create your views here.
 from .models import Model_info,Test_info,Service_info
 from .filters import ModelFilter
@@ -131,6 +132,8 @@ def model_info_api(request, model_id):
         return model_info(request, model_id)
     elif request.method == 'PUT':
         return model_change(request, model_id)
+    elif request.method == 'POST':
+        return test_add(request, model_id)
     else:
         return JsonResponse({"errmsg":"请求有误"},status=400)
 
@@ -215,45 +218,97 @@ def model_change(request, model_id):
         resp.status_code = 400
     return resp
 
-def test_file_add_single(request):
-    try:
-        tested_file = request.FILES['tested_file']
-        message = request.POST.get('message')
-        model_id = request.POST.get('model_id',None)
-        service_id = request.POST.get('service_id',None)
-        test = Test_info.objects.create(tested_file=tested_file,message=message)
-    except:
-        os.remove(test.tested_file.path)
-        test.delete()
-        return HttpResponse('单个测试文件上传失败,请检查file/message/model_id/service_id')
-    try:
-        if model_id != None:
-            test.mod = Model_info.objects.get(id=model_id) 
-    except:
-        os.remove(test.tested_file.path)
-        test.delete()
-        return HttpResponse('单个测试文件上传失败，请检查model_id')
-    try:
-        if service_id != None:
-            test.service = Service_info.objects.get(id=service_id)
-    except:
-        os.remove(test.tested_file.path)
-        test.delete()
-        return HttpResponse('单个测试文件上传失败，请检查service_id')       
-    test.save()
-    return HttpResponse('单个测试文件上传成功')
-
-def test_file_add(request):
-    if request.method != 'POST':
-        return HttpResponse("上传测试文件失败")
+def fast_test(request,id,type='model'):
+    input_x = dict()
+    for key in request.FILES:
+        input_x[key] = request.FILES[key]
+    for key in request.POST:
+        input_x[key] = request.POST[key]
+    if type == 'model':
+        model = Model_info.objects.get(id=id)
     else:
-        add_mode = request.POST.get('add_mode')
-        if add_mode == 'single':           
-            return test_file_add_single(request)
+        mod = Service_info.objects.get(id=id).mod
+        model = Model_info.objects.get(id=mod)
+    tested_model_path = model.file.path
+    tested_model_type = model.model_type
+    # TODO: 预处理
+    return quick_predict(tested_model_path,type = tested_model_type,x_test = input_x)
+
+def test_add(request,model_id):
+    res = dict()
+    willContinue = True
+    try:
+        res['result'] = fast_test(request,model_id)
+    except:
+        res = {"errmsg":"Request error"}
+        willContinue = False
+    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
+    if willContinue:
+        resp.status_code = 200
+    else:
+        resp.status_code = 400
+    return resp
+
+def task_add(request, service_id):
+    res = dict()
+    willContinue = True
+    try:
+        test_type = request.GET['type']
+    except:
+        res = {"errmsg":"Request error"}
+        willContinue = False
+    try:
+        message = request.POST.get('message','')
+        service = Service_info.objects.get(id=service_id)
+        mod = Model_info.objects.get(id=service.mod)
+        if 'file' in request.FILES:
+            test.tested_file = request.FILES['file']
+        test = Test_info.objects.create(message=message,service=service,mod=mod,test_type=test_type)
+        test.save()
+        if test_type == 'fast':
+            res['result'] = fast_test(request,service_id,type='service')
+            test.recent_modified_time = timezone.now()
+            test.end_time = timezone.now()
+            test.is_finished = True
+            test.save()
+            service.average_use_time = \
+                (service.average_use_time * service.use_times + test.end_time - test.start_time)/(service.use_times + 1)
+            service.use_times = service.use_times + 1
+            service.save()
         else:
-            # TODO：后续可增加查看单一文件功能
-            test_file_add_single(request)
-            return HttpResponse('压缩文件下测试文件上传成功')
+            new_task(request,test.id ,service.id, mode = 'multiple')
+            res['task_id'] = test.id
+            service.use_times = service.use_times + 1
+            service.save()
+    except:
+        try:
+            os.remove(test.tested_file.path)
+        except:
+            pass
+        try:
+            test.delete()
+        except:
+            pass
+        res = {"errmsg":"Request error"}
+        willContinue = False
+    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
+    if willContinue:
+        resp.status_code = 200
+    else:
+        resp.status_code = 400
+    return resp
+
+# def test_file_add(request):
+#     if request.method != 'POST':
+#         return HttpResponse("上传测试文件失败")
+#     else:
+#         add_mode = request.POST.get('add_mode')
+#         if add_mode == 'single':           
+#             return test_file_add_single(request)
+#         else:
+#             # TODO：后续可增加查看单一文件功能
+#             test_file_add_single(request)
+#             return HttpResponse('压缩文件下测试文件上传成功')
 
 from .ml import batch_predict,quick_predict
 from threading import Thread
@@ -261,46 +316,55 @@ import cv2
 import zipfile
 import numpy as np
 
-def start_test(test_file_id , model_id, mode = 'single'):
+def start_test(test_file_id , service_id, mode = 'single'):
     test_task =  Test_info.objects.get(id=test_file_id)
     test_file = test_task.file
-    test_task.mod = Model_info.objects.get(id=model_id)
     test_task.threadID = threading.currentThread().ident
     test_task.is_finished = False
     test_task.save()
-    tested_model_type = test_task.mod.model_type
-    tested_model_path = test_task.mod.file.path
     res = {}
-    # TODO test_file预处理
-    if mode == 'single':
-        res['result'] = quick_predict(tested_model_path,type = tested_model_type,x_test = test_file)
-        test_task.result = res['result']
-        test_task.is_finished = True
-        test_task.save()
-    else:
-        # 不解压直接读取zip中的图片
-        with zipfile.ZipFile(test_file.path, mode='r') as zfile:  # 只读方式打开压缩包
+    try:
+        tested_model_type = test_task.mod.model_type
+        tested_model_path = test_task.mod.file.path
+        service = Service_info.objects.get(id=service_id)
+        # TODO test_file预处理
+        if mode == 'single':
+            res['result'] = quick_predict(tested_model_path,type = tested_model_type,x_test = test_file)
+            test_task.result = res['result']
+            test_task.is_finished = True
+            test_task.save()
+        else:
+            # 不解压直接读取zip中的图片
+            with zipfile.ZipFile(test_file.path, mode='r') as zfile:  # 只读方式打开压缩包
 
-            for name in zfile.namelist():
-                if '.jpg' not in name:
-                    continue
+                for name in zfile.namelist():
+                    if '.jpg' not in name:
+                        continue
 
-                with zfile.open(name, mode='r') as image_file:
-                    content = image_file.read()  # 一次性读入整张图片信息
-                    image = np.asarray(bytearray(content), dtype='uint8')
-                    image = cv2.imdecode(image, cv2.IMREAD_COLOR)
-                    cv2.imshow('image', image)
+                    with zfile.open(name, mode='r') as image_file:
+                        content = image_file.read()  # 一次性读入整张图片信息
+                        image = np.asarray(bytearray(content), dtype='uint8')
+                        image = cv2.imdecode(image, cv2.IMREAD_COLOR)
+                        cv2.imshow('image', image)
 
-            zfile.close()
-            # TODO 集中np转化
-        res['result'] = batch_predict(path = tested_model_path, type = tested_model_type,x_test = test_file)
-        test_task.result = res['result']
-        test_task.is_finished = True
-        test_task.save()
+                zfile.close()
+                # TODO 集中np转化
+            res['result'] = batch_predict(path = tested_model_path, type = tested_model_type,x_test = test_file)
+            test_task.result = res['result']
+            test_task.is_finished = True
+            test_task.recent_modified_time = timezone.now()
+            test_task.end_time = timezone.now()
+            test_task.save()
+            service.average_use_time = \
+                (service.average_use_time * service.use_times + test_task.end_time - test_task.start_time)/(service.use_times + 1)
+            service.use_times = service.use_times + 1
+            service.save()
+            test_task.save()
+    except:
+        JsonResponse({"errmsg":"获取信息失败"},status=400)
     return JsonResponse(res)
 
-def new_task(request, test_file_id, mode = 'single'):
-    model_id = request.POST.get['model_id']
+def new_task(request, test_file_id, model_id,mode = 'single'):
     param_tuple = (test_file_id, model_id, mode)
     new_thread = Thread(target=start_test, args=param_tuple)
     new_thread.start()
@@ -334,31 +398,32 @@ def test_all(request):
 
 # 测试成功，多页未测试
 def test_api(request):
-    if request.method == 'POST':
-        return test_file_add(request)
-    elif request.method == 'GET':
+    if request.method == 'GET':
         return test_all(request)
     else:
         return JsonResponse({"errmsg":"请求有误"},status=400)
 
-def test_info_api(request, tested_file_id):
+def test_info_api(request, test_id):
     if request.method == 'DELETE':
-        return test_delete(request, tested_file_id)
+        return test_delete(request, test_id)
     elif request.method == 'GET':
-        return test_info(request, tested_file_id)
+        return test_info(request, test_id)
     elif request.method == 'PUT': # 不要求
-        return test_change(request, tested_file_id)
+        return test_change(request, test_id)
     else:
         return JsonResponse({"errmsg":"请求有误"},status=400)
 
-def test_info(request, tested_file_id):
+def test_info(request, test_id):
     res = dict()
     willContinue = True
     try:
-        test = Test_info.objects.get(id=tested_file_id)
+        test = Test_info.objects.get(id=test_id)
         res = model_to_dict(test)
-        res['tested_file']=BASE_URL+res['tested_file'].url
-        # res['addTime'] = tested_file.addTime.strftime("%Y-%m-%d %H:%M")
+        if test.tested_file != None:
+            res['tested_file']=BASE_URL+res['tested_file'].url
+        res['add_time'] = test.add_time.strftime("%Y-%m-%d %H:%M")
+        res['recent_modified_time'] = test.add_time.strftime("%Y-%m-%d %H:%M")
+        res['add_time'] = test.add_time.strftime("%Y-%m-%d %H:%M")
     except:
         res = {"errmsg":"读取测试信息失败，可能您输入的测试文件已被删除"}
         willContinue = False
@@ -369,14 +434,14 @@ def test_info(request, tested_file_id):
         resp.status_code = 400
     return resp
 
-def test_delete(request, tested_file_id):
+def test_delete(request, test_id):
     res = dict()
     willContinue = True
     try:
-        tested_file = Test_info.objects.get(id=tested_file_id)
+        tested_file = Test_info.objects.get(id=test_id)
         os.remove(tested_file.tested_file.path)
         tested_file.delete()
-        {"成功删除测试任务":tested_file_id}
+        {"test_id":test_id}
     except:
         res = {"errmsg":"删除测试任务失败"}
         willContinue = False
@@ -387,13 +452,12 @@ def test_delete(request, tested_file_id):
         resp.status_code = 400
     return resp
 
-from django.utils import timezone
-def test_change(request, tested_file_id):
+def test_change(request, test_id):
     res = dict()
     willContinue = True
     print(request.PUT)
     try:
-        test = Test_info.objects.get(id=tested_file_id)
+        test = Test_info.objects.get(id=test_id)
         message = request.PUT.get('message')
         is_finished = request.PUT.get('is_finished',test.is_finished)
 
@@ -417,7 +481,6 @@ def test_change(request, tested_file_id):
         resp.status_code = 400
     return resp
 
-
 def service_api(request):
     if request.method == 'POST':
         return service_add(request)
@@ -434,6 +497,8 @@ def service_info_api(request, service_id):
     elif request.method == 'PUT':
         # 暂停，启动等操作
         return service_change(request, service_id)
+    elif request.method == 'POST':
+        return task_add(request, service_id)
     else:
         return JsonResponse({"errmsg":"请求有误"},status=400)
 
@@ -449,7 +514,7 @@ def service_add(request):
             description = request.POST.get('description','')
             model_id = request.POST.get('model_id')
             service = Service_info.objects.create(name=name,description=description,mod = Model_info.objects.get(id=model_id))
-
+            res = {"service_id":service.id}
         except:
             res = {"errmsg":"部署失败"}
             willContinue = False
@@ -499,9 +564,8 @@ def service_delete(request, service_id):
     willContinue = True
     try:
         service = Service_info.objects.get(id=service_id)
-        # TODO 这里没测试有没有删除干净，包括文件
         service.delete()
-        {"成功删除部署":service_id}
+        {"id":service_id}
     except:
         res = {"errmsg":"删除部署失败"}
         willContinue = False

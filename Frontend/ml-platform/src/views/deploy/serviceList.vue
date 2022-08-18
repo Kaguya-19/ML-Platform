@@ -20,7 +20,7 @@
             </a-col>
             <a-col :md="8" :sm="24">
               <a-form-item label="Status">
-                <a-select placeholder="请选择" default-value="" v-model="filter_type">
+                <a-select placeholder="请选择" default-value="" v-model="filter_status">
                   <a-select-option value="">All</a-select-option>
                   <a-select-option value="undeployed">undeployed</a-select-option>
                   <a-select-option value="deployed">deployed</a-select-option>
@@ -74,18 +74,25 @@
 
       <div class="table-operator">
         <a-dropdown v-if="selectedRowKeys.length > 0">
-          <a-button style="margin-left: 8px" @click="deploys">
-            批量部署
-          </a-button>
-          <!-- TODO:debug -->
-          <a-button style="margin-left: 8px" @click="pauses">
-            批量暂停
-          </a-button>
-          <a-button style="margin-left: 8px" @click="undeploys">
-            批量停止
-          </a-button>
-          <a-button style="margin-left: 8px" @click="dels">
-            批量删除
+          <template #overlay>
+            <a-menu>
+              <a-menu-item @click="deploys">
+                批量部署
+              </a-menu-item>
+              <a-menu-item @click="pauses">
+                批量暂停
+              </a-menu-item>
+              <a-menu-item @click="stops">
+                批量停止
+              </a-menu-item>
+              <a-menu-item @click="dels">
+                批量删除
+              </a-menu-item>
+            </a-menu>
+          </template>
+          <a-button>
+            批量操作
+            <DownOutlined />
           </a-button>
         </a-dropdown>
       </div>
@@ -99,9 +106,15 @@
         :rowSelection="{ selectedRowKeys: this.selectedRowKeys, onChange: this.onSelectChange }"
         :rowKey="record => record.id"
       >
-        <template v-for="(col, index) in columns" v-if="col.scopedSlots" :slot="col.dataIndex" slot-scope="text">
+        <template v-for="(col, index) in columns" v-if="col.scopedSlots" :slot="col.dataIndex" slot-scope="text, record">
           <div :key="index">
-            <template>{{ text }}</template>
+            <a-input
+              v-if="record.editable"
+              style="margin: -5px 0"
+              :value="text"
+              @change="e => handleChange(e.target.value, record.key, col, record)"
+            />
+            <template v-else>{{ text }}</template>
           </div>
         </template>
 
@@ -109,10 +122,13 @@
           <div class="editable-row-operations">
             <span>
               <a class="edit" @click="() => detail(record)">详情</a>
-              <a-divider type="vertical" />
+              <a-divider type="vertical" v-if="record.status!='deployed'"/>
               <a class="delete" @click="() => deploy(record)" v-if="record.status!='deployed'">部署</a>
+              <a-divider type="vertical" v-if="record.status!='paused'"/>
               <a class="delete" @click="() => pause(record)" v-if="record.status!='paused'">暂停</a>
-              <a class="delete" @click="() => undeploy(record)" v-if="record.status!='undeployed'">停止</a>
+              <a-divider type="vertical" v-if="record.status!='undeployed'"/>
+              <a class="delete" @click="() => stop(record)" v-if="record.status!='undeployed'">停止</a>
+              <a-divider type="vertical" />
               <a class="delete" @click="() => del(record)">删除</a>
             </span>
           </div>
@@ -190,9 +206,12 @@ export default {
         if (this.filter_status !== '') {
           this.queryParam['status'] = this.filter_status
         }
-        return axios.get('/ml/service', {
+        return axios.get('/ml/deploy', {
           params: Object.assign(parameter, this.queryParam)
         }).then(res => {
+            console.log(this.queryParam)
+            console.log(parameter)
+            console.log(res.data.result)
             return res.data.result
             }).catch(err => {
             console.log(err)
@@ -228,7 +247,7 @@ export default {
         cancelText: '取消',
         onOk () {
           axios({
-            url: `/ml/service/${row.id}`,
+            url: `/ml/deploy/${row.id}`,
             method: 'delete',
             processData: false
             }).then(res => {
@@ -258,7 +277,7 @@ export default {
           console.log(thi.selectedRows)
           for (var i = 0; i < thi.selectedRows.length; i++) {
           await axios({
-            url: `/ml/service/${thi.selectedRows[i].id}`,
+            url: `/ml/deploy/${thi.selectedRows[i].id}`,
             method: 'delete',
             processData: false
             }).catch(err => {
@@ -285,11 +304,16 @@ export default {
         okType: 'danger',
         cancelText: '取消',
         onOk () {
+          const formData = new FormData()
+          formData.append('status', 'paused')
           axios({
-            url: `/ml/service/${row.id}`,
+            url: `/ml/deploy/${row.id}`,
             method: 'put',
             processData: false,
-            data: { 'status': 'paused' }
+            headers: {
+               'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            data: formData
             }).then(res => {
                 thi.$message.success('pause successfully.')
                 thi.resetForm()
@@ -314,13 +338,18 @@ export default {
         okType: 'danger',
         cancelText: '取消',
         async onOk () {
+          const formData = new FormData()
+          formData.append('status', 'paused')
           console.log(thi.selectedRows)
           for (var i = 0; i < thi.selectedRows.length; i++) {
           await axios({
-            url: `/ml/service/${thi.selectedRows[i].id}`,
+            url: `/ml/deploy/${thi.selectedRows[i].id}`,
             method: 'put',
             processData: false,
-            data: { 'status': 'paused' }
+            headers: {
+               'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            data: formData
             }).catch(err => {
               console.log(err)
               if ('errmsg' in err.response.data) {
@@ -341,15 +370,20 @@ export default {
       this.$confirm({
         title: '警告',
         content: `真的要部署 ${row.name} 吗?`,
-        okText: '暂停',
+        okText: '部署',
         okType: 'danger',
         cancelText: '取消',
         onOk () {
+          const formData = new FormData()
+          formData.append('status', 'deployed')
           axios({
-            url: `/ml/service/${row.id}`,
+            url: `/ml/deploy/${row.id}`,
             method: 'put',
             processData: false,
-            data: { 'status': 'deployed' }
+            headers: {
+               'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            data: formData
             }).then(res => {
                 thi.$message.success('deploy successfully.')
                 thi.resetForm()
@@ -374,13 +408,18 @@ export default {
         okType: 'danger',
         cancelText: '取消',
         async onOk () {
+          const formData = new FormData()
+          formData.append('status', 'deployed')
           console.log(thi.selectedRows)
           for (var i = 0; i < thi.selectedRows.length; i++) {
           await axios({
-            url: `/ml/service/${thi.selectedRows[i].id}`,
+            url: `/ml/deploy/${thi.selectedRows[i].id}`,
             method: 'put',
             processData: false,
-            data: { 'status': 'deployed' }
+            headers: {
+               'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            data: formData
             }).catch(err => {
               console.log(err)
               if ('errmsg' in err.response.data) {
@@ -405,11 +444,16 @@ export default {
         okType: 'danger',
         cancelText: '取消',
         onOk () {
+          const formData = new FormData()
+          formData.append('status', 'undeployed')
           axios({
-            url: `/ml/service/${row.id}`,
+            url: `/ml/deploy/${row.id}`,
             method: 'put',
             processData: false,
-            data: { 'status': 'undeployed' }
+            headers: {
+               'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            data: formData
             }).then(res => {
                 thi.$message.success('undeploy successfully.')
                 thi.resetForm()
@@ -434,13 +478,18 @@ export default {
         okType: 'danger',
         cancelText: '取消',
         async onOk () {
+          const formData = new FormData()
+          formData.append('status', 'paused')
           console.log(thi.selectedRows)
           for (var i = 0; i < thi.selectedRows.length; i++) {
           await axios({
-            url: `/ml/service/${thi.selectedRows[i].id}`,
+            url: `/ml/deploy/${thi.selectedRows[i].id}`,
             method: 'put',
             processData: false,
-            data: { 'status': 'undeployed' }
+            headers: {
+               'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            data: formData
             }).catch(err => {
               console.log(err)
               if ('errmsg' in err.response.data) {

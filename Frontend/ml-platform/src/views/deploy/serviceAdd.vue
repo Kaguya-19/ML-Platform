@@ -4,12 +4,12 @@
       <!-- 模型名称 -->
       <a-form @submit="handleSubmit" :form="form">
         <a-form-item
-          label="Model_id"
+          label="Mode _id"
           :labelCol="{lg: {span: 7}, sm: {span: 7}}"
           :wrapperCol="{lg: {span: 10}, sm: {span: 17} }">
           <a-input
             v-decorator="[
-              'mod',
+              'model_id',
               {rules: [{ required: true, message: $t('form.basic-form.title.required') }], initialValue: model_id}
             ]"
             name="name"
@@ -57,7 +57,6 @@ export default {
   name: 'ModelAdd',
   data () {
     return {
-      fileList: [],
       model_id: this.$route.query.id,
       form: this.$form.createForm(this)
     }
@@ -72,7 +71,7 @@ export default {
             formData.append(v, values[v])
           }
           axios({
-            url: '/ml/service',
+            url: '/ml/deploy',
             method: 'post',
             processData: false,
             headers: {
@@ -81,7 +80,7 @@ export default {
             data: formData
             }).then(res => {
                 this.$message.success('deploy successfully.')
-                this.$router.push('/depoly/service-list')
+                this.$router.push('/deploy/deploy-list')
               }).catch(err => {
               console.log(err)
               if ('errmsg' in err.response.data) {

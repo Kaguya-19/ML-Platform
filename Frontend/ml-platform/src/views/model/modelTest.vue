@@ -120,6 +120,7 @@
       </a-form>
     </template>
     <!-- 模型测试 -->
+    <!-- TODO -->
     <template v-if="page=='test'">
       <a-row type="flex" :gutter="16">
         <a-col :span="12">
@@ -326,9 +327,10 @@ export default {
       ],
       // 加载数据方法 必须为 Promise 对象
       loadData: parameter => {
-        return axios.get('/ml/service', {
+        return axios.get('/ml/deploy', {
           params: Object.assign(parameter, { 'mod': this.model_id })
         }).then(res => {
+            console.log(res.data)
             return res.data.result
             }).catch(err => {
             console.log(err)
@@ -531,7 +533,7 @@ export default {
     },
     detail (row) {
       console.log(row.id)
-      this.$router.push({ path: '/model/service-test', query: { id: row.id } })
+      this.$router.push({ path: '/deploy/deploy-test', query: { id: row.id } })
       // row = Object.assign({}, row)
     }
   }

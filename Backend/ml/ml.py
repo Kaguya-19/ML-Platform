@@ -416,7 +416,7 @@ class ONNXModel(BaseModel):
             result.append({
                 'name': x.name,
                 'type': x.type,
-                'opType': x.shape
+                'shape': x.shape
             })
 
         # suppose there is only 1 tensor input
@@ -1076,8 +1076,11 @@ if __name__ == "__main__":
     path = os.path.dirname(__file__)
     info = get_model_info(
         path + r"\my_model", "keras")
-    print(info)
-    x_test = np.arange(0, 64).reshape(2, 32)
+    print("keras: ", info)
 
-    print(batch_predict(
-        path + r"\my_model", "keras", x_test))
+    print("onnx: ", get_model_info(
+        path + r"\logreg_iris.onnx", "onnx"))
+
+    print("pmml: ", get_model_info(
+        path + r"\xgb-iris.pmml", "pmml"
+    ))

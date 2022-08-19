@@ -1,4 +1,6 @@
+from array import array
 import threading
+from tkinter.filedialog import test
 from turtle import Turtle
 
 from django.shortcuts import render
@@ -261,7 +263,7 @@ import cv2
 import zipfile
 import numpy as np
 
-def start_test(test_file_id , model_id, mode = 'single'):
+def start_test(test_file_id , model_id):
     test_task =  Test_info.objects.get(id=test_file_id)
     test_file = test_task.file
     test_task.mod = Model_info.objects.get(id=model_id)
@@ -272,38 +274,59 @@ def start_test(test_file_id , model_id, mode = 'single'):
     tested_model_path = test_task.mod.file.path
     res = {}
     # TODO test_file预处理
-    if mode == 'single':
-        res['result'] = quick_predict(tested_model_path,type = tested_model_type,x_test = test_file)
-        test_task.result = res['result']
-        test_task.is_finished = True
-        test_task.save()
-    else:
-        # 不解压直接读取zip中的图片
-        with zipfile.ZipFile(test_file.path, mode='r') as zfile:  # 只读方式打开压缩包
+    # 不解压直接读取zip中的图片
+    with zipfile.ZipFile(test_file.path, mode='r') as zfile:  # 只读方式打开压缩包
 
-            for name in zfile.namelist():
-                if '.jpg' not in name:
-                    continue
+        for name in zfile.namelist():
+            if '.jpg' not in name:
+                continue
 
-                with zfile.open(name, mode='r') as image_file:
-                    content = image_file.read()  # 一次性读入整张图片信息
-                    image = np.asarray(bytearray(content), dtype='uint8')
-                    image = cv2.imdecode(image, cv2.IMREAD_COLOR)
-                    cv2.imshow('image', image)
+            with zfile.open(name, mode='r') as image_file:
+                content = image_file.read()  # 一次性读入整张图片信息
+                image = np.asarray(bytearray(content), dtype='uint8')
+                image = cv2.imdecode(image, cv2.IMREAD_COLOR)
+                cv2.imshow('image', image)
 
-            zfile.close()
-            # TODO 集中np转化
-        res['result'] = batch_predict(path = tested_model_path, type = tested_model_type,x_test = test_file)
-        test_task.result = res['result']
-        test_task.is_finished = True
-        test_task.save()
+        zfile.close()
+        # TODO 集中np转化
+    res['result'] = batch_predict(path = tested_model_path, type = tested_model_type,x_test = test_file)
+    test_task.result = res['result']
+    test_task.is_finished = True
+    test_task.save()
     return JsonResponse(res)
 
-def new_task(request, test_file_id, mode = 'single'):
+def new_task(request, test_file_id):
     model_id = request.POST.get['model_id']
-    param_tuple = (test_file_id, model_id, mode)
+    param_tuple = (test_file_id, model_id)
     new_thread = Thread(target=start_test, args=param_tuple)
     new_thread.start()
+    
+def test_quick(request, model_id):
+    if request.method == 'POST':
+        model = Model_info.objects.get(id=model_id)
+        model_type = model.model_type
+        model_path = model.file.path
+        model_input = model.input
+        x_test = []
+        try:
+            test_data = request.POST
+            for key, value in test_data.items():
+                if isinstance(value,list):
+                    x_test += value
+                else:
+                    x_test.append(value)
+            x_test = np.array(x_test).astype(np.float32)
+            if model_type == "pmml":
+                x_test = x_test.reshape(1,len(x_test))
+            result = quick_predict(model_path,model_type,x_test)
+            print("result: ", result)
+            return JsonResponse(result,status=200)
+        except:
+            import traceback
+            traceback.print_exc()
+            return JsonResponse({"errmsg":"输入参数与模型不符"},status=400)
+    else:
+        return JsonResponse({"errmsg":"请求有误"},status=400)
 
 # 返回查询的test列表信息
 def test_all(request):

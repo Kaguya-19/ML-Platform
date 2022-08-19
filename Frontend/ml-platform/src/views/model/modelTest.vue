@@ -427,7 +427,7 @@ export default {
           }
           console.log(values) // TODO: waiting anime
           axios({
-            url: `/ml/test/${this.model_id}`, // TODO
+            url: `/ml/test/quick/${this.model_id}`, // TODO
             method: 'post',
             processData: false,
             headers: {
@@ -436,6 +436,7 @@ export default {
             data: formData
           }).then(res => {
             this.$message.success('upload successfully.')
+            console.log(res.data)
             this.testRes = JSON.stringify(res.data)
           }).catch(err => {
             console.log(err)
@@ -457,7 +458,7 @@ export default {
       }
       console.log(jsonJson)
       axios({
-        url: `/ml/model/${this.model_id}`, // TODO
+        url: `/ml/test/quick/${this.model_id}`, // TODO
         method: 'post',
         processData: false,
         headers: {

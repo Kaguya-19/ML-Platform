@@ -1,4 +1,6 @@
+from array import array
 import threading
+from tkinter.filedialog import test
 from turtle import Turtle
 
 from django.shortcuts import render
@@ -364,10 +366,38 @@ def start_test(test_file_id , service_id, mode = 'single'):
         JsonResponse({"errmsg":"获取信息失败"},status=400)
     return JsonResponse(res)
 
-def new_task(request, test_file_id, model_id,mode = 'single'):
-    param_tuple = (test_file_id, model_id, mode)
+def new_task(request, test_file_id):
+    model_id = request.POST.get['model_id']
+    param_tuple = (test_file_id, model_id)
     new_thread = Thread(target=start_test, args=param_tuple)
     new_thread.start()
+    
+def test_quick(request, model_id):
+    if request.method == 'POST':
+        model = Model_info.objects.get(id=model_id)
+        model_type = model.model_type
+        model_path = model.file.path
+        model_input = model.input
+        x_test = []
+        try:
+            test_data = request.POST
+            for key, value in test_data.items():
+                if isinstance(value,list):
+                    x_test += value
+                else:
+                    x_test.append(value)
+            x_test = np.array(x_test).astype(np.float32)
+            if model_type == "pmml":
+                x_test = x_test.reshape(1,len(x_test))
+            result = quick_predict(model_path,model_type,x_test)
+            print("result: ", result)
+            return JsonResponse(result,status=200)
+        except:
+            import traceback
+            traceback.print_exc()
+            return JsonResponse({"errmsg":"输入参数与模型不符"},status=400)
+    else:
+        return JsonResponse({"errmsg":"请求有误"},status=400)
 
 # 返回查询的test列表信息
 def test_all(request):

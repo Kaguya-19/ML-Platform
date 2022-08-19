@@ -423,7 +423,7 @@ def test_info(request, test_id):
             res['tested_file']=BASE_URL+res['tested_file'].url
         res['add_time'] = test.add_time.strftime("%Y-%m-%d %H:%M")
         res['recent_modified_time'] = test.add_time.strftime("%Y-%m-%d %H:%M")
-        res['add_time'] = test.add_time.strftime("%Y-%m-%d %H:%M")
+        res['endtime'] = test.endtime.strftime("%Y-%m-%d %H:%M")
     except:
         res = {"errmsg":"读取测试信息失败，可能您输入的测试文件已被删除"}
         willContinue = False
@@ -582,8 +582,8 @@ def service_info(request, service_id):
     try:
         service = Service_info.objects.get(id=service_id)
         res = model_to_dict(service)
-        # res['tested_file']=BASE_URL+res['tested_file'].url
-        # res['addTime'] = tested_file.addTime.strftime("%Y-%m-%d %H:%M")
+        res['create_time'] = service.create_time.strftime("%Y-%m-%d %H:%M")
+        res['recent_modified_time'] = service.recent_modified_time.strftime("%Y-%m-%d %H:%M")
     except:
         res = {"errmsg":"读取测试信息失败，可能您输入的测试文件已被删除"}
         willContinue = False

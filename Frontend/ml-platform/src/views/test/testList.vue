@@ -22,9 +22,9 @@
               <a-form-item label="Status">
                 <a-select placeholder="请选择" default-value="" v-model="filter_status">
                   <a-select-option value="">All</a-select-option>
-                  <a-select-option value="undeployed">undeployed</a-select-option>
-                  <a-select-option value="deployed">deployed</a-select-option>
-                  <a-select-option value="paused">paused</a-select-option>
+                  <a-select-option value="false">undeployed</a-select-option>
+                  <a-select-option value="true">deployed</a-select-option>
+                  <!-- <a-select-option value="paused">paused</a-select-option> -->
                 </a-select>
               </a-form-item>
             </a-col>
@@ -161,7 +161,7 @@ export default {
       // 表头
       columns: [
         {
-          title: 'Service number',
+          title: 'Test number',
           dataIndex: 'id',
           key: 'id'
         },
@@ -206,7 +206,7 @@ export default {
         if (this.filter_status !== '') {
           this.queryParam['status'] = this.filter_status
         }
-        return axios.get('/ml/deploy', {
+        return axios.get('/ml/test', {
           params: Object.assign(parameter, this.queryParam)
         }).then(res => {
             console.log(this.queryParam)
@@ -234,7 +234,7 @@ export default {
     },
     detail (row) {
       console.log(row.id)
-      this.$router.push({ path: '/deploy/deploy-test', query: { id: row.id } })
+      this.$router.push({ path: '/test/test-detail', query: { id: row.id } })
       // row = Object.assign({}, row)
     },
     del (row) {
@@ -247,7 +247,7 @@ export default {
         cancelText: '取消',
         onOk () {
           axios({
-            url: `/ml/deploy/${row.id}`,
+            url: `/ml/test/${row.id}`,
             method: 'delete',
             processData: false
             }).then(res => {
@@ -277,7 +277,7 @@ export default {
           console.log(thi.selectedRows)
           for (var i = 0; i < thi.selectedRows.length; i++) {
           await axios({
-            url: `/ml/deploy/${thi.selectedRows[i].id}`,
+            url: `/ml/test/${thi.selectedRows[i].id}`,
             method: 'delete',
             processData: false
             }).catch(err => {
@@ -307,7 +307,7 @@ export default {
           const formData = new FormData()
           formData.append('status', 'paused')
           axios({
-            url: `/ml/deploy/${row.id}`,
+            url: `/ml/test/${row.id}`,
             method: 'put',
             processData: false,
             headers: {
@@ -343,7 +343,7 @@ export default {
           console.log(thi.selectedRows)
           for (var i = 0; i < thi.selectedRows.length; i++) {
           await axios({
-            url: `/ml/deploy/${thi.selectedRows[i].id}`,
+            url: `/ml/test/${thi.selectedRows[i].id}`,
             method: 'put',
             processData: false,
             headers: {
@@ -377,7 +377,7 @@ export default {
           const formData = new FormData()
           formData.append('status', 'deployed')
           axios({
-            url: `/ml/deploy/${row.id}`,
+            url: `/ml/test/${row.id}`,
             method: 'put',
             processData: false,
             headers: {
@@ -413,7 +413,7 @@ export default {
           console.log(thi.selectedRows)
           for (var i = 0; i < thi.selectedRows.length; i++) {
           await axios({
-            url: `/ml/deploy/${thi.selectedRows[i].id}`,
+            url: `/ml/test/${thi.selectedRows[i].id}`,
             method: 'put',
             processData: false,
             headers: {
@@ -447,7 +447,7 @@ export default {
           const formData = new FormData()
           formData.append('status', 'undeployed')
           axios({
-            url: `/ml/deploy/${row.id}`,
+            url: `/ml/test/${row.id}`,
             method: 'put',
             processData: false,
             headers: {
@@ -483,7 +483,7 @@ export default {
           console.log(thi.selectedRows)
           for (var i = 0; i < thi.selectedRows.length; i++) {
           await axios({
-            url: `/ml/deploy/${thi.selectedRows[i].id}`,
+            url: `/ml/test/${thi.selectedRows[i].id}`,
             method: 'put',
             processData: false,
             headers: {

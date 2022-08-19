@@ -137,27 +137,29 @@
             <template #extra><a @click.stop="toJSON">JSON</a></template>
             <a-form @submit="testFormSubmit" :form="form">
               <a-form-item v-for="(data, index) in inputData" :key="index" :label="data.name+' (Type:'+data.type+')'">
-                <!-- todo:upload -->
                 <a-switch
                   :check="isFile[data.name]"
+                  :v-model="isFile[data.name]"
                   checkedChildren="File"
                   unCheckedChildren="Text"
                   @change="chooseForT(data.name)"/>
-                <a-upload
-                  :file-list="testFileList"
-                  :before-upload="testBeforeUpload"
-                  :multiplt="false"
-                  :max-count="1"
-                  v-decorator="[data.name, { rules: [{required: true, message: 'Please give input'}]}]"
-                  v-if="isFile[data.name]"
-                >
-                  <a-button> <a-icon type="upload" /> Select File </a-button>
-                </a-upload>
-                <a-textarea
-                  rows="2"
-                  v-decorator="[data.name, { rules: [{required: true, message: 'Please give input'}]}]"
-                  v-else
-                />
+                <a-form-item v-if="isFile[data.name]">
+                  <a-upload
+                    :before-upload="testBeforeUpload"
+                    :multiplt="false"
+                    :max-count="1"
+                    :name="data.name"
+                    v-decorator="[data.name, { rules: [{required: true, message: 'Please give input'}]}]"
+                  >
+                    <a-button> <a-icon type="upload" /> Select File </a-button>
+                  </a-upload>
+                </a-form-item>
+                <a-form-item v-else>
+                  <a-textarea
+                    rows="2"
+                    v-decorator="[data.name, { rules: [{required: true, message: 'Please give input'}]}]"
+                  />
+                </a-form-item>
                 <!-- <a-textarea
                   rows="2"
                   v-decorator="[data.name, { rules: [{required: true, message: 'Please give input'}]}]"
@@ -352,8 +354,12 @@ export default {
       this.isFile[checked] = !this.isFile[checked]
       this.isJSON = !this.isJSON
       this.isJSON = !this.isJSON
+      this.form.resetFields(checked)
     },
     toJSON () {
+      for (var v in this.isFile) {
+        this.isFile[v] = false
+      }
       this.isJSON = !this.isJSON
       },
     // handler
@@ -453,30 +459,25 @@ export default {
     },
     testFormSubmit (e) {
       e.preventDefault()
+      console.log(this.form)
       this.form.validateFields((err, values) => {
         if (!err) {
           var formData = new FormData()
           console.log(values)
           for (var v in values) {
-           if (this.isFile[v]) {
+           try {
             formData.append(v, values[v].file)
-           } else {
+           } catch (err) {
+            console.log(err)
             formData.append(v, values[v])
            }
           }
           console.log(values) // TODO: waiting anime
           axios({
-            url: `/ml/test`, // TODO
+            url: `/ml/modely/${this.model_id}`,
             method: 'post',
             processData: false,
-            headers: {
-               'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            data: {
-              'input': formData,
-              'mod': this.model_id,
-              'test_type': 'fast'
-            }
+            data: formData
             }).then(res => {
                 this.$message.success('upload successfully.')
                 this.testRes = JSON.stringify(res.data)
@@ -499,18 +500,18 @@ export default {
         this.$message.error('json error.')
       }
       console.log(jsonJson)
+      const formData = new FormData()
+      Object.keys(jsonJson).forEach((key) => {
+      formData.append(key, jsonJson[key])
+      })
       axios({
-            url: `/ml/test`,
+            url: `/ml/model/${this.model_id}`,
             method: 'post',
             processData: false,
             headers: {
                'Content-Type': 'application/x-www-form-urlencoded'
             },
-            data: {
-              'input': jsonJson,
-              'mod': this.model_id,
-              'test_type': 'fast'
-            }
+            data: formData
             }).then(res => {
                 this.$message.success('upload successfully.')
                 this.testRes = JSON.stringify(res.data)

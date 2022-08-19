@@ -3,13 +3,16 @@
     <!-- 选择菜单：部署概述/测试 -->
     <a-menu mode="horizontal">
       <a-menu-item @click="showPage('info')">Service infomation</a-menu-item>
-      <a-menu-item @click="showPage('test')">Service test</a-menu-item>
+      <a-menu-item @click="showPage('test')">Fast test</a-menu-item>
+      <a-menu-item @click="showPage('task')">Task</a-menu-item>
     </a-menu>
     <!-- 部署概述 -->
     <template v-if="page=='info'">
       <!-- 基本信息 -->
       <a-card :bordered="false" title="Indicators">
-
+        <a-button @click.stop="deploy" v-if="serviceStatus!='deployed'">Deploy</a-button>
+        <a-button @click.stop="undeploy" v-if="serviceStatus!='undeployed'">Undeploy</a-button>
+        <a-button @click.stop="pause" v-if="serviceStatus!='pause'">Pause</a-button>
         <a-table :columns="funcColumns" :data-source="funcData">
         </a-table>
       </a-card>
@@ -21,6 +24,9 @@
     </template>
     <!-- 部署测试 -->
     <template v-if="page=='test'">
+      <a-modal v-model="visible" title="Curl" @ok="handleOk">
+        <div>{{ curlStr }}</div>
+      </a-modal>
       <a-row type="flex" :gutter="16">
         <a-col :span="12">
           <a-card title="Input" :bordered="false" v-if="isJSON">
@@ -31,12 +37,12 @@
             />
             <!-- <a-button @click.prevent="reset">Clear</a-button> -->
             <a-button type="primary" @click.stop="submitJSON" style="margin-left: 16px">Submit</a-button>
+            <a-button type="primary" @click.stop="jsonCurl" style="margin-left: 16px">Curlcode</a-button>
           </a-card>
           <a-card title="Input" :bordered="false" v-else>
             <template #extra><a @click.stop="toJSON">JSON</a></template>
             <a-form @submit="testFormSubmit" :form="form">
               <a-form-item v-for="(data, index) in inputData" :key="index" :label="data.name+' (Type:'+data.type+')'">
-                <!-- todo:upload -->
                 <a-switch
                   :check="isFile[data.name]"
                   :v-model="isFile[data.name]"
@@ -65,6 +71,38 @@
                   v-decorator="[data.name, { rules: [{required: true, message: 'Please give input'}]}]"
                   v-else
                 /> -->
+              </a-form-item>
+              <a-form-item :wrapper-col="{ span: 14, offset: 15 }">
+                <!-- <a-button @click.prevent="reset">Clear</a-button> -->
+                <a-button type="primary" htmlType="submit" style="margin-left: 16px">Submit</a-button>
+                <a-button type="primary" @click.stop="formCurl" style="margin-left: 16px">Curlcode</a-button>
+              </a-form-item>
+            </a-form>
+
+          </a-card>
+        </a-col>
+        <a-col :span="12">
+          <a-card title="Output" :bordered="false">
+            <textarea style="border: none" :value="testRes">
+            </textarea>
+          </a-card>
+        </a-col>
+      </a-row>
+    </template>
+    <template v-if="page=='task'">
+      <a-row type="flex" :gutter="16">
+        <a-col :span="12">
+          <a-card title="Input" :bordered="false">
+            <a-form @submit="taskFormSubmit" :form="form">
+              <a-form-item>
+                <a-upload
+                  :before-upload="testBeforeUpload"
+                  :multiplt="false"
+                  :max-count="1"
+                  v-decorator="['file', { rules: [{required: true, message: 'Please give input'}]}]"
+                >
+                  <a-button> <a-icon type="upload" /> Select File </a-button>
+                </a-upload>
               </a-form-item>
               <a-form-item :wrapper-col="{ span: 14, offset: 15 }">
                 <!-- <a-button @click.prevent="reset">Clear</a-button> -->
@@ -175,7 +213,10 @@ export default {
       testFileList: [],
       isFile: {},
       form: this.$form.createForm(this),
-      testRes: 'Here is result!'
+      testRes: 'Here is result!',
+
+      visible: false,
+      curlStr: ''
     }
   },
   beforeMount () {
@@ -252,6 +293,7 @@ export default {
           })
     },
     testBeforeUpload (file) {
+      console.log(file)
       return false
     },
     testFormSubmit (e) {
@@ -271,10 +313,10 @@ export default {
           }
           console.log(values) // TODO: waiting anime
           axios({
-            url: `/ml/deploy/${this.service_id}`,
+            url: `/ml/deploy/${this.deploy_id}`,
             method: 'post',
             processData: false,
-            params:{
+            params: {
               'type': 'fast'
             },
             data: formData
@@ -298,16 +340,21 @@ export default {
       } catch (err) {
         console.log(err)
         this.$message.error('json error.')
+        return
       }
       console.log(jsonJson)
+      const formData = new FormData()
+      Object.keys(jsonJson).forEach((key) => {
+      formData.append(key, jsonJson[key])
+      })
       axios({
-            url: `/ml/deploy/${this.service_id}`,
+            url: `/ml/deploy/${this.deploy_id}`,
             method: 'post',
             processData: false,
             headers: {
                'Content-Type': 'application/x-www-form-urlencoded'
             },
-            data: jsonJson,
+            data: formData
             }).then(res => {
                 this.$message.success('upload successfully.')
                 this.testRes = JSON.stringify(res.data)
@@ -319,6 +366,181 @@ export default {
                 this.$message.error('upload failed.')
                 }
             })
+    },
+    pause () {
+      const thi = this
+      this.$confirm({
+        title: '警告',
+        content: `真的要暂停吗?`,
+        okText: '暂停',
+        okType: 'danger',
+        cancelText: '取消',
+        onOk () {
+          const formData = new FormData()
+          formData.append('status', 'paused')
+          axios({
+            url: `/ml/deploy/${this.deploy_id}`,
+            method: 'put',
+            processData: false,
+            headers: {
+               'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            data: formData
+            }).then(res => {
+                thi.$message.success('pause successfully.')
+              }).catch(err => {
+              console.log(err)
+              if ('errmsg' in err.response.data) {
+                thi.$message.error(err.response.data.errmsg)
+                this.$router.go(0)
+              } else {
+                thi.$message.error('pause failed.')
+                }
+            })
+        }
+      })
+    },
+    deploy () {
+      const thi = this
+      this.$confirm({
+        title: '警告',
+        content: `真的要暂停吗?`,
+        okText: '暂停',
+        okType: 'danger',
+        cancelText: '取消',
+        onOk () {
+          const formData = new FormData()
+          formData.append('status', 'deployed')
+          axios({
+            url: `/ml/deploy/${this.deploy_id}`,
+            method: 'put',
+            processData: false,
+            headers: {
+               'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            data: formData
+            }).then(res => {
+                thi.$message.success('pause successfully.')
+              }).catch(err => {
+              console.log(err)
+              if ('errmsg' in err.response.data) {
+                thi.$message.error(err.response.data.errmsg)
+                this.$router.go(0)
+              } else {
+                thi.$message.error('pause failed.')
+                }
+            })
+        }
+      })
+    },
+    undeploy () {
+      const thi = this
+      this.$confirm({
+        title: '警告',
+        content: `真的要暂停吗?`,
+        okText: '暂停',
+        okType: 'danger',
+        cancelText: '取消',
+        onOk () {
+          const formData = new FormData()
+          formData.append('status', 'undeployed')
+          axios({
+            url: `/ml/deploy/${this.deploy_id}`,
+            method: 'put',
+            processData: false,
+            headers: {
+               'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            data: formData
+            }).then(res => {
+                thi.$message.success('pause successfully.')
+              }).catch(err => {
+              console.log(err)
+              if ('errmsg' in err.response.data) {
+                thi.$message.error(err.response.data.errmsg)
+                this.$router.go(0)
+              } else {
+                thi.$message.error('pause failed.')
+                }
+            })
+        }
+      })
+    },
+    jsonCurl () {
+      this.curlStr = `curl --location --request POST 'http://127.0.0.1:8001/ml/deploy/${this.deploy_id}?type=fast'`
+      try {
+      var jsonJson = JSON.parse(this.jsonStr)
+      } catch (err) {
+        console.log(err)
+        this.$message.error('json error.')
+        return
+      }
+      console.log(jsonJson)
+      for (var v in jsonJson) {
+        this.curlStr += ` \\\n--form '${v}="${jsonJson[v]}"'`
+      }
+      this.visible = true
+    },
+    formCurl () {
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          this.curlStr = `curl --location --request POST 'http://127.0.0.1:8001/ml/deploy/${this.deploy_id}?type=fast'`
+          for (var v in values) {
+           try {
+            const reader = new FileReader()
+            reader.readAsDataURL(values[v].file)
+            reader.onload = () => {
+            this.curlStr += ` \\\n--form '${v}="${reader.result}"'`
+            }
+           } catch (err) {
+            console.log(err)
+            this.curlStr += ` \\\n--form '${v}="${values[v]}"'`
+           }
+          }
+        }
+      })
+      this.visible = true
+    },
+    handleOk () {
+      this.visible = false
+    },
+    taskFormSubmit (e) {
+      e.preventDefault()
+      console.log(this.form)
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          var formData = new FormData()
+          console.log(values)
+          for (var v in values) {
+           try {
+            formData.append(v, values[v].file)
+           } catch (err) {
+            console.log(err)
+            formData.append(v, values[v])
+           }
+          }
+          console.log(values) // TODO: waiting anime
+          axios({
+            url: `/ml/deploy/${this.deploy_id}`,
+            method: 'post',
+            processData: false,
+            params: {
+              'type': 'batch'
+            },
+            data: formData
+            }).then(res => {
+                this.$message.success('upload successfully.')
+                this.testRes = res.data.service_id
+              }).catch(err => {
+              console.log(err)
+              if ('errmsg' in err.response.data) {
+                this.$message.error(err.response.data.errmsg)
+              } else {
+                this.$message.error('upload failed.')
+                }
+            })
+        }
+      })
     }
   }
 }

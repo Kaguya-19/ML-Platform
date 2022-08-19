@@ -88,6 +88,28 @@ export const asyncRouterMap = [
 
       // list
       {
+        path: '/test',
+        name: 'test',
+        component: RouteView,
+        redirect: '/test/test-add',
+        meta: { title: 'test', icon: 'table', permission: ['table'] },
+        children: [
+          {
+            path: '/test/test-list',
+            name: 'testList',
+            component: () => import('@/views/test/testList'),
+            meta: { title: 'Service List', keepAlive: true, permission: ['table'] }
+          },
+          {
+            path: '/test/test-detail',
+            name: 'testDatail',
+            component: () => import('@/views/test/testDetail'),
+            meta: { title: 'Test service', keepAlive: true, permission: ['table'] },
+            hidden: true
+          }
+        ]
+      },
+      {
         path: '/deploy',
         name: 'deploy',
         component: RouteView,
@@ -334,34 +356,34 @@ export const asyncRouterMap = [
  * @type { *[] }
  */
 export const constantRouterMap = [
-  {
-    path: '/user',
-    component: UserLayout,
-    redirect: '/user/login',
-    hidden: true,
-    children: [
-      {
-        path: 'login',
-        name: 'login',
-        component: () => import(/* webpackChunkName: "user" */ '@/views/user/Login')
-      },
-      {
-        path: 'register',
-        name: 'register',
-        component: () => import(/* webpackChunkName: "user" */ '@/views/user/Register')
-      },
-      {
-        path: 'register-result',
-        name: 'registerResult',
-        component: () => import(/* webpackChunkName: "user" */ '@/views/user/RegisterResult')
-      },
-      {
-        path: 'recover',
-        name: 'recover',
-        component: undefined
-      }
-    ]
-  },
+  // {
+  //   path: '/user',
+  //   component: UserLayout,
+  //   redirect: '/user/login',
+  //   hidden: true,
+  //   children: [
+  //     {
+  //       path: 'login',
+  //       name: 'login',
+  //       component: () => import(/* webpackChunkName: "user" */ '@/views/user/Login')
+  //     },
+  //     {
+  //       path: 'register',
+  //       name: 'register',
+  //       component: () => import(/* webpackChunkName: "user" */ '@/views/user/Register')
+  //     },
+  //     {
+  //       path: 'register-result',
+  //       name: 'registerResult',
+  //       component: () => import(/* webpackChunkName: "user" */ '@/views/user/RegisterResult')
+  //     },
+  //     {
+  //       path: 'recover',
+  //       name: 'recover',
+  //       component: undefined
+  //     }
+  //   ]
+  // },
   {
     path: '/404',
     component: () => import(/* webpackChunkName: "fail" */ '@/views/exception/404')

@@ -9,7 +9,7 @@
       <a-menu-item @click="showPage('pre')">Pre</a-menu-item>
     </a-menu>
     <!-- 模型概述 -->
-    <template v-if="page=='info'">
+    <template v-if="page == 'info'">
       <!-- 基本信息 -->
 
       <a-card :bordered="false">
@@ -31,7 +31,7 @@
           </a-col>
         </a-row>
         <a-row type="flex" style="margin-top: 20px">
-          <a-descriptions title="Description" v-if="modelDescription!==''" :value="modelDescription">
+          <a-descriptions title="Description" v-if="modelDescription !== ''" :value="modelDescription">
             <a-descriptions-item>{{ modelDescription }}</a-descriptions-item>
           </a-descriptions>
         </a-row>
@@ -54,41 +54,43 @@
       </a-row>
     </template>
     <!-- change -->
-    <template v-if="page=='change'">
-      <a-form @submit="handleSubmit" :form="form" >
+    <template v-if="page == 'change'">
+      <a-form @submit="handleSubmit" :form="form">
         <a-form-item
           :label="$t('form.basic-form.title.label')"
-          :labelCol="{lg: {span: 7}, sm: {span: 7}}"
-          :wrapperCol="{lg: {span: 10}, sm: {span: 17} }">
+          :labelCol="{ lg: { span: 7 }, sm: { span: 7 } }"
+          :wrapperCol="{ lg: { span: 10 }, sm: { span: 17 } }">
           <a-input
             v-decorator="[
               'name',
-              {rules: [{ required: true, message: $t('form.basic-form.title.required') }],
-               initialValue : modelName }
+              {
+                rules: [{ required: true, message: $t('form.basic-form.title.required') }],
+                initialValue: modelName
+              }
             ]"
-            name="name"/>
+            name="name" />
         </a-form-item>
         <a-form-item
           :label="$t('form.basic-form.goal.label')"
-          :labelCol="{lg: {span: 7}, sm: {span: 7}}"
-          :wrapperCol="{lg: {span: 10}, sm: {span: 17} }">
+          :labelCol="{ lg: { span: 7 }, sm: { span: 7 } }"
+          :wrapperCol="{ lg: { span: 10 }, sm: { span: 17 } }">
           <a-textarea
             rows="4"
             v-decorator="[
               'description',
-              {rules: [{ required: false }],
-               initialValue : modelDescription
+              {
+                rules: [{ required: false }],
+                initialValue: modelDescription
               }
             ]" />
         </a-form-item>
         <!-- 模型类型 -->
         <a-form-item
           label="Model type"
-          :labelCol="{lg: {span: 7}, sm: {span: 7}}"
-          :wrapperCol="{lg: {span: 10}, sm: {span: 17}}"
-        >
+          :labelCol="{ lg: { span: 7 }, sm: { span: 7 } }"
+          :wrapperCol="{ lg: { span: 10 }, sm: { span: 17 } }">
           <a-select
-            v-decorator="['model_type', { rules: [{required: true, message: 'Please choose your model type'}], initialValue: modelType}]">
+            v-decorator="['model_type', { rules: [{ required: true, message: 'Please choose your model type' }], initialValue: modelType }]">
             <a-select-option value="pmml">PMML</a-select-option>
             <a-select-option value="onnx">ONNX</a-select-option>
           </a-select>
@@ -96,9 +98,8 @@
         <!-- 模型文件上传 -->
         <a-form-item
           label="Model file"
-          :labelCol="{lg: {span: 7}, sm: {span: 7}}"
-          :wrapperCol="{lg: {span: 10}, sm: {span: 17}}"
-        >
+          :labelCol="{ lg: { span: 7 }, sm: { span: 7 } }"
+          :wrapperCol="{ lg: { span: 10 }, sm: { span: 17 } }">
           <a-upload
             name="file"
             :file-list="fileList"
@@ -106,58 +107,56 @@
             :multiplt="false"
             :max-count="1"
             v-decorator="['file']"
-            :show-upload-list="{ showRemoveIcon: false }"
-          >
-            <a-button> <a-icon type="upload" /> Select File </a-button>
+            :show-upload-list="{ showRemoveIcon: false }">
+            <a-button>
+              <a-icon type="upload" /> Select File
+            </a-button>
           </a-upload>
         </a-form-item>
-        <a-form-item
-          :wrapperCol="{ span: 24 }"
-          style="text-align: center"
-        >
+        <a-form-item :wrapperCol="{ span: 24 }" style="text-align: center">
           <a-button htmlType="submit" type="primary">{{ $t('form.basic-form.form.submit') }}</a-button>
           <!-- <a-button style="margin-left: 8px">{{ $t('form.basic-form.form.save') }}</a-button> -->
         </a-form-item>
       </a-form>
     </template>
     <!-- 模型测试 -->
-    <template v-if="page=='test'">
+    <template v-if="page == 'test'">
       <a-row type="flex" :gutter="16">
         <a-col :span="12">
           <a-card title="Input" :bordered="false" v-if="isJSON">
             <template #extra><a @click.stop="toJSON">Form</a></template>
-            <a-textarea
-              rows="6"
-              v-model="jsonStr"
-            />
+            <a-textarea rows="6" v-model="jsonStr" />
             <!-- <a-button @click.prevent="reset">Clear</a-button> -->
             <a-button type="primary" @click.stop="submitJSON" style="margin-left: 16px">Submit</a-button>
           </a-card>
           <a-card title="Input" :bordered="false" v-else>
             <template #extra><a @click.stop="toJSON">JSON</a></template>
             <a-form @submit="testFormSubmit" :form="form">
-              <a-form-item v-for="(data, index) in inputData" :key="index" :label="data.name+' (Type:'+data.type+')'">
+              <a-form-item
+                v-for="(data, index) in inputData"
+                :key="index"
+                :label="data.name + ' (Type:' + data.type + ')'">
                 <!-- todo:upload -->
                 <a-switch
                   :check="isFile[data.name]"
                   checkedChildren="File"
                   unCheckedChildren="Text"
-                  @change="chooseForT(data.name)"/>
+                  @change="chooseForT(data.name)" />
                 <a-upload
                   :file-list="testFileList"
                   :before-upload="testBeforeUpload"
                   :multiplt="false"
                   :max-count="1"
-                  v-decorator="[data.name, { rules: [{required: true, message: 'Please give input'}]}]"
-                  v-if="isFile[data.name]"
-                >
-                  <a-button> <a-icon type="upload" /> Select File </a-button>
+                  v-decorator="[data.name, { rules: [{ required: true, message: 'Please give input' }] }]"
+                  v-if="isFile[data.name]">
+                  <a-button>
+                    <a-icon type="upload" /> Select File
+                  </a-button>
                 </a-upload>
                 <a-textarea
                   rows="2"
-                  v-decorator="[data.name, { rules: [{required: true, message: 'Please give input'}]}]"
-                  v-else
-                />
+                  v-decorator="[data.name, { rules: [{ required: true, message: 'Please give input' }] }]"
+                  v-else />
                 <!-- <a-textarea
                   rows="2"
                   v-decorator="[data.name, { rules: [{required: true, message: 'Please give input'}]}]"
@@ -180,14 +179,14 @@
       </a-row>
     </template>
     <!-- tasks -->
-    <template v-if="page=='tasks'">
-    <!-- todo -->
+    <template v-if="page == 'tasks'">
+      <!-- todo -->
       <a-row type="flex" :gutter="16">
         <a-col :span="12">
           <a-card title="Input" :bordered="false">
             <a-form>
               <a-form-item v-for="(data, index) in inputData" :key="index" :label="data.iField">
-                <a-input/>
+                <a-input />
               </a-form-item>
               <a-form-item :wrapper-col="{ span: 14, offset: 15 }">
                 <a-button @click.prevent="onSubmit">Clear</a-button>
@@ -206,14 +205,11 @@
       </a-row>
     </template>
     <!-- pre -->
-    <template v-if="page=='pre'">
+    <template v-if="page == 'pre'">
       <a-row type="flex" :gutter="16">
         <a-col :span="12">
           <a-card title="Input" :bordered="false">
-            <a-textarea
-              rows="6"
-              v-model="preStr"
-            />
+            <a-textarea rows="6" v-model="preStr" />
             <!-- <a-button @click.prevent="reset">Clear</a-button> -->
             <a-button type="primary" @click.stop="submitPre" style="margin-left: 16px">Submit</a-button>
           </a-card>
@@ -318,50 +314,52 @@ export default {
     },
     toJSON () {
       this.isJSON = !this.isJSON
-      },
+    },
     // handler
     getInfo () {
       axios.get(`/ml/model/${this.model_id}`)
-          .then(res => {
-            this.modelName = res.data.name
-            this.modelAlgorithm = res.data.algorithm
-            this.modelEngine = res.data.engine
-            this.modelType = res.data.model_type
-            this.modelTime = res.data.addTime
-            if (res.data.description !== 'undefined') {
-              this.modelDescription = res.data.description
-            }
-            this.inputData = res.data.input
-            var jsonJson = {}
-            this.isFile = []
-            this.testFileList = []
-            this.testFileDic = {}
-            for (let i = 0; i < this.inputData.length; i++) {
-              jsonJson[this.inputData[i].name] = ''
-              this.isFile[this.inputData[i].name] = false
-              if ('shape' in this.inputData[i]) {
+        .then(res => {
+          this.modelName = res.data.name
+          this.modelAlgorithm = res.data.algorithm
+          this.modelEngine = res.data.engine
+          this.modelType = res.data.model_type
+          this.modelTime = res.data.addTime
+          if (res.data.description !== 'undefined') {
+            this.modelDescription = res.data.description
+          }
+          this.inputData = res.data.input
+          var jsonJson = {}
+          this.isFile = []
+          this.testFileList = []
+          this.testFileDic = {}
+          for (let i = 0; i < this.inputData.length; i++) {
+            jsonJson[this.inputData[i].name] = ''
+            this.isFile[this.inputData[i].name] = false
+            if ('shape' in this.inputData[i]) {
               this.inputData[i].shape = '[' + String(this.inputData[i].shape) + ']'
             }
-            }
-            this.jsonStr = JSON.stringify(jsonJson)
-            this.outputData = res.data.output
-            for (let i = 0; i < this.outputData.length; i++) {
-              if ('shape' in this.outputData[i]) {
+          }
+          this.jsonStr = JSON.stringify(jsonJson)
+          this.outputData = res.data.output
+          for (let i = 0; i < this.outputData.length; i++) {
+            if ('shape' in this.outputData[i]) {
               this.outputData[i].shape = '[' + String(this.outputData[i].shape) + ']'
             }
-            }
-            this.fileList = [{ uid: '-1',
-                                name: res.data.file.split('/').slice(-1)[0],
-                                status: 'done',
-                                url: res.data.file }]
-            }).catch(err => {
-            console.log(err)
-            if ('errmsg' in err.response.data) {
-              this.$message.error(err.response.data.errmsg)
-            } else {
-              this.$message.error('read failed.')
-              }
-          })
+          }
+          this.fileList = [{
+            uid: '-1',
+            name: res.data.file.split('/').slice(-1)[0],
+            status: 'done',
+            url: res.data.file
+          }]
+        }).catch(err => {
+          console.log(err)
+          if ('errmsg' in err.response.data) {
+            this.$message.error(err.response.data.errmsg)
+          } else {
+            this.$message.error('read failed.')
+          }
+        })
     },
     beforeUpload (file) {
       this.fileList = [file]
@@ -380,11 +378,11 @@ export default {
           var formData = new FormData()
           console.log(values)
           if (this.fileChanged) {
-          formData.append('file', values['file'].file)
+            formData.append('file', values['file'].file)
           }
           for (var v in values) {
-           if (v !== 'file') {
-            formData.append(v, values[v])
+            if (v !== 'file') {
+              formData.append(v, values[v])
             }
           }
           console.log(values)
@@ -397,20 +395,20 @@ export default {
             method: 'put',
             processData: false,
             headers: {
-               'Content-Type': 'application/x-www-form-urlencoded'
+              'Content-Type': 'application/x-www-form-urlencoded'
             },
             data: formData
-            }).then(res => {
-                this.$message.success('upload successfully.')
-                this.$router.go(0)
-              }).catch(err => {
-              console.log(err)
-              if ('errmsg' in err.response.data) {
-                this.$message.error(err.response.data.errmsg)
-              } else {
-                this.$message.error('upload failed.')
-                }
-            })
+          }).then(res => {
+            this.$message.success('upload successfully.')
+            this.$router.go(0)
+          }).catch(err => {
+            console.log(err)
+            if ('errmsg' in err.response.data) {
+              this.$message.error(err.response.data.errmsg)
+            } else {
+              this.$message.error('upload failed.')
+            }
+          })
         }
       })
     },
@@ -421,62 +419,62 @@ export default {
           var formData = new FormData()
           console.log(values)
           for (var v in values) {
-           if (this.isFile[v]) {
-            formData.append(v, values[v].file)
-           } else {
-            formData.append(v, values[v])
-           }
+            if (this.isFile[v]) {
+              formData.append(v, values[v].file)
+            } else {
+              formData.append(v, values[v])
+            }
           }
           console.log(values) // TODO: waiting anime
           axios({
-            url: `/ml/model/${this.model_id}`, // TODO
+            url: `/ml/test/${this.model_id}`, // TODO
             method: 'post',
             processData: false,
             headers: {
-               'Content-Type': 'application/x-www-form-urlencoded'
+              'Content-Type': 'application/x-www-form-urlencoded'
             },
             data: formData
-            }).then(res => {
-                this.$message.success('upload successfully.')
-                this.testRes = JSON.stringify(res.data)
-              }).catch(err => {
-              console.log(err)
-              if ('errmsg' in err.response.data) {
-                this.$message.error(err.response.data.errmsg)
-              } else {
-                this.$message.error('upload failed.')
-                }
-            })
+          }).then(res => {
+            this.$message.success('upload successfully.')
+            this.testRes = JSON.stringify(res.data)
+          }).catch(err => {
+            console.log(err)
+            if ('errmsg' in err.response.data) {
+              this.$message.error(err.response.data.errmsg)
+            } else {
+              this.$message.error('upload failed.')
+            }
+          })
         }
       })
     },
     submitJSON () {
       try {
-      var jsonJson = JSON.parse(this.jsonStr)
+        var jsonJson = JSON.parse(this.jsonStr)
       } catch (err) {
         console.log(err)
         this.$message.error('json error.')
       }
       console.log(jsonJson)
       axios({
-            url: `/ml/model/${this.model_id}`, // TODO
-            method: 'post',
-            processData: false,
-            headers: {
-               'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            data: jsonJson
-            }).then(res => {
-                this.$message.success('upload successfully.')
-                this.testRes = JSON.stringify(res.data)
-              }).catch(err => {
-              console.log(err)
-              if ('errmsg' in err.response.data) {
-                this.$message.error(err.response.data.errmsg)
-              } else {
-                this.$message.error('upload failed.')
-                }
-            })
+        url: `/ml/model/${this.model_id}`, // TODO
+        method: 'post',
+        processData: false,
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        data: jsonJson
+      }).then(res => {
+        this.$message.success('upload successfully.')
+        this.testRes = JSON.stringify(res.data)
+      }).catch(err => {
+        console.log(err)
+        if ('errmsg' in err.response.data) {
+          this.$message.error(err.response.data.errmsg)
+        } else {
+          this.$message.error('upload failed.')
+        }
+      })
     },
     showPage (key) {
       this.page = key

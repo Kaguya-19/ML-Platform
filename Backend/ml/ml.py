@@ -2,6 +2,7 @@ from __future__ import absolute_import, print_function
 import sys
 import json
 import os
+from traceback import format_exc
 import pandas as pd
 import numpy as np
 
@@ -324,7 +325,7 @@ class ONNXModel(BaseModel):
 
         except Exception as e:
             import traceback
-            traceback.print_exc()
+            return {"stderr": traceback.format_exc()}
 
     def batch_predict(self, x_test, input_function_name):
         if x_test is None:
@@ -357,7 +358,7 @@ class ONNXModel(BaseModel):
 
         except Exception as e:
             import traceback
-            traceback.print_exc()
+            return {"stderr": traceback.format_exc()}
 
     def evaluate_metrics(self, x_test, y_test, data_test, input_function_name):
         if x_test is None or y_test is None:
@@ -404,7 +405,8 @@ class ONNXModel(BaseModel):
             else:
                 return {}
         except Exception as e:
-            return {}
+            import traceback
+            return {"stderr": traceback.format_exc()}
 
     def predictors(self, x_test, data_test):
         result = []
@@ -521,7 +523,7 @@ class PMMLModel(BaseModel):
 
             except Exception as e:
                 import traceback
-                traceback.print_exc()
+                return {"stderr": traceback.format_exc()}
         else:
             return {}
 
@@ -547,7 +549,7 @@ class PMMLModel(BaseModel):
 
             except Exception as e:
                 import traceback
-                traceback.print_exc()
+                return {"stderr": traceback.format_exc()}
         else:
             return {}
 
@@ -613,7 +615,8 @@ class PMMLModel(BaseModel):
             result.append(({
                 'name': x.name,
                 'sample': row.get(x.name) if row is not None else None,
-                'type': x.dataType
+                'type': x.dataType,
+                "opType": x.opType
             }))
         return result
 
@@ -643,11 +646,374 @@ class PMMLModel(BaseModel):
         return result
 
 
+class KerasModel(BaseModel):
+    def __init__(self, model):
+        BaseModel.__init__(self, model)
+        self.tf_keras = False
+
+    def is_support(self):
+        try:
+            from keras.models import Model, load_model
+            if isinstance(self.model, Model):
+                return True
+            if self._is_support_tf_keras():
+                return True
+            if isinstance(self.model, str):
+                self.model = load_model(self.model)
+                return True
+            return False
+        except:
+            return self._is_support_tf_keras()
+
+    def _is_support_tf_keras(self):
+        try:
+            import tensorflow as tf
+            self.tf_keras = isinstance(self.model, tf.keras.Model)
+            return self.tf_keras
+        except:
+            return False
+
+    def model_type(self):
+        return 'tf.Keras' if self.tf_keras else 'Keras'
+
+    def model_version(self):
+        if self.tf_keras:
+            import tensorflow as tf
+            return BaseModel.extract_major_minor_version(tf.keras.__version__)
+        else:
+            import keras
+            return BaseModel.extract_major_minor_version(keras.__version__)
+
+    def mining_function(self, y_test):
+        return self._infer_mining_function(y_test)
+
+    def serialization(self):
+        return 'hdf5'
+
+    def predictors(self, x_test, data_test):
+        result = []
+
+        row = None
+        columns = None
+        if x_test is not None:
+            x_test = self._series_to_dataframe(x_test)
+            shape = x_test.shape
+            if isinstance(x_test, pd.DataFrame):
+                row = x_test.iloc[0]
+                columns = list(x_test.columns)
+            else:
+                row = x_test[0]
+
+        for idx, x in enumerate(self.model.inputs):
+            name = x.name
+            if hasattr(self.model, 'input_names'):
+                name = self.model.input_names[idx]
+            tensor_shape = self._normalize_tensor_shape(x.shape)
+            result.append({
+                'name': name,
+                'sample': [row.tolist()] if row is not None and self._compatible_shape(tensor_shape, shape) else None,
+                'type': np.dtype(x.dtype.as_numpy_dtype).name,
+                'shape': tensor_shape
+            })
+
+            if columns is not None and result[-1]['sample'] is not None:
+                result[-1]['columns'] = columns
+
+        return result
+
+    def targets(self, y_test, data_test):
+        if y_test is None:
+            return []
+
+        result = []
+        y_test = self._series_to_dataframe(y_test)
+        if isinstance(y_test, pd.DataFrame):
+            row = json.loads(y_test.iloc[0].to_json())
+            cols = row.keys()
+            for x in cols:
+                result.append(({
+                    'name': x,
+                    'sample': row[x],
+                    'type': type(row[x]).__name__
+                }))
+        else:
+            row = y_test[0]
+            result.append({
+                'name': 'tensor_target',
+                'sample': row.tolist(),
+                'type': y_test.dtype.name,
+                'shape': self._normalize_np_shape(y_test.shape)
+            })
+
+        return result
+
+    def outputs(self, y_test, data_test, **kwargs):
+        result = []
+
+        for idx, x in enumerate(self.model.outputs):
+            name = x.name
+            if hasattr(self.model, 'output_names'):
+                name = self.model.output_names[idx]
+            result.append(({
+                'name': name,
+                'type': np.dtype(x.dtype.as_numpy_dtype).name,
+                'shape': self._normalize_tensor_shape(x.shape)
+            }))
+        return result
+
+    def quick_prediction(self, x_test, input_function_name):
+        if x_test is None:
+            return {}
+
+        try:
+            import numpy as np
+            import pandas as pd
+            function_name = input_function_name if input_function_name else self.mining_function(
+                None)
+            result = []
+            # convert to numpy array if not
+            x_test = BaseModel._to_ndarray(x_test)
+            y_pred = pd.DataFrame(self.model.predict(x_test))
+            for idx, x in enumerate(self.model.outputs):
+                name = x.name
+                if hasattr(self.model, 'output_names'):
+                    name = self.model.output_names[idx]
+                result.append({
+                    'name': name,
+                    'value': y_pred.iat[0, idx]
+                })
+
+            return {
+                "result": result
+            }
+
+        except Exception as e:
+            import traceback
+            return {"stderr": traceback.format_exc()}
+
+    def batch_predict(self, x_test, input_function_name):
+        if x_test is None:
+            return {}
+
+        try:
+            import numpy as np
+            import pandas as pd
+            function_name = input_function_name if input_function_name else self.mining_function(
+                None)
+            result = []
+            # convert to numpy array if not
+            x_test = BaseModel._to_ndarray(x_test)
+            y_pred = pd.DataFrame(self.model.predict(x_test))
+            for i in range(y_pred.shape[0]):
+                tmp = {}
+                for idx, x in enumerate(self.model.outputs):
+                    name = x.name
+                    if hasattr(self.model, 'output_names'):
+                        name = self.model.output_names[idx]
+                    tmp[name] = y_pred.iat[i, idx]
+                result.append(tmp)
+
+            return {
+                "result": result
+            }
+
+        except Exception as e:
+            import traceback
+            return {"stderr": traceback.format_exc()}
+
+    def evaluate_metrics(self, x_test, y_test, data_test, input_function_name):
+        if x_test is None or y_test is None:
+            return {}
+
+        try:
+            import numpy as np
+            import pandas as pd
+            function_name = input_function_name if input_function_name else self.mining_function(
+                y_test)
+
+            # convert to numpy array if not
+            x_test = BaseModel._to_ndarray(x_test)
+            y_test = BaseModel._to_ndarray(y_test)
+
+            shape = y_test.shape
+            if len(shape) > 1 and shape[1] > 1:
+                y_test = np.argmax(y_test, axis=1)
+
+            if function_name == FUNCTION_NAME_CLASSIFICATION:
+                from sklearn.metrics import accuracy_score
+                y_pred = pd.DataFrame(self.model.predict(x_test)).apply(lambda x: np.argmax(np.array([x])),
+                                                                        axis=1)
+                accuracy = accuracy_score(y_test, y_pred)
+                return {
+                    'accuracy': accuracy
+                }
+            elif function_name == FUNCTION_NAME_REGRESSION:
+                from sklearn.metrics import explained_variance_score
+                y_pred = pd.DataFrame(self.model.predict(x_test))
+                explained_variance = explained_variance_score(y_test, y_pred)
+                return {
+                    'explainedVariance': explained_variance
+                }
+            else:
+                return {}
+        except:
+            return {}
+
+    @staticmethod
+    def _normalize_tensor_shape(tensor_shape):
+        return [(d.value if hasattr(d, 'value') else d) for d in tensor_shape]
+
+
+class SparkModel(BaseModel):
+    def __init__(self, model):
+        BaseModel.__init__(self, model)
+
+    def is_support(self):
+        try:
+            from pyspark.ml import Model
+            return isinstance(self.model, Model)
+        except:
+            return False
+
+    def is_pipeline_model(self):
+        try:
+            from pyspark.ml import PipelineModel
+            return isinstance(self.model, PipelineModel)
+        except:
+            return False
+
+    def model_type(self):
+        return 'Spark'
+
+    def model_version(self):
+        from pyspark import SparkConf, SparkContext
+        sc = SparkContext.getOrCreate(conf=SparkConf())
+        return BaseModel.extract_major_minor_version(sc.version)
+
+    def mining_function(self, y_test):
+        return BaseModel.mining_function(self, y_test)
+
+    def serialization(self):
+        return 'spark'
+
+    def evaluate_metrics(self, x_test, y_test, data_test, input_function_name):
+        if data_test is None:
+            return {}
+
+        try:
+            prediction = self.model.transform(data_test)
+            label_col = self.get_label_col()
+            predict_col = self.get_prediction_col()
+            function_name = input_function_name if input_function_name else self.mining_function(
+                y_test)
+            if function_name == FUNCTION_NAME_CLASSIFICATION:
+                accuracy = prediction.rdd.filter(
+                    lambda x: x[label_col] == x[predict_col]).count() * 1.0 / prediction.count()
+                return {
+                    'accuracy': accuracy
+                }
+            elif function_name == FUNCTION_NAME_REGRESSION:
+                numerator = prediction.rdd.map(
+                    lambda x: x[label_col] - x[predict_col]).variance()
+                denominator = prediction.rdd.map(
+                    lambda x: x[label_col]).variance()
+                explained_variance = 1.0 - numerator / denominator
+                return {
+                    'explainedVariance': explained_variance
+                }
+            else:
+                return {}
+        except:
+            return {}
+
+    def predictors(self, x_test, data_test):
+        if data_test is None:
+            return []
+
+        row = json.loads(data_test.limit(1).toPandas().iloc[0].to_json())
+        label_col = self.get_label_col()
+        cols = row.keys()
+        result = []
+        for x in cols:
+            if x != label_col:
+                result.append(({
+                    'name': x,
+                    'sample': row[x],
+                    'type': type(row[x]).__name__
+                }))
+        return result
+
+    def targets(self, y_test, data_test):
+        if data_test is None:
+            return []
+
+        row = json.loads(data_test.limit(1).toPandas().iloc[0].to_json())
+        label_col = self.get_label_col()
+        cols = row.keys()
+        result = []
+        for x in cols:
+            if x == label_col:
+                result.append(({
+                    'name': x,
+                    'sample': row[x],
+                    'type': type(row[x]).__name__
+                }))
+        return result
+
+    def get_label_col(self):
+        from pyspark.ml import PipelineModel
+        if isinstance(self.model, PipelineModel):
+            stages = self.model.stages
+            label_col = None
+            i = 0
+            for x in reversed(stages):
+                try:
+                    label_col = x._call_java('getLabelCol')
+                    i += 1
+                    break
+                except:
+                    pass
+
+            # find the first input column
+            reversed_stages = stages[:]
+            reversed_stages.reverse()
+            for x in reversed_stages[i:]:
+                try:
+                    if x._call_java('getOutputCol') == label_col:
+                        label_col = x._call_java('getInputCol')
+                except:
+                    pass
+            return 'label' if label_col is None else label_col
+        else:
+            label_col = None
+            try:
+                label_col = self.model._call_java('getLabelCol')
+            except:
+                label_col = 'label'
+            return label_col
+
+    def get_prediction_col(self):
+        from pyspark.ml import PipelineModel
+        if isinstance(self.model, PipelineModel):
+            stages = self.model.stages
+            try:
+                return stages[-1].getOutputCol()
+            except:
+                return 'prediction'
+        else:
+            try:
+                return self.model.getPredictionCol()
+            except:
+                return 'prediction'
+
+
 def get_model_info(path, type):
     if type == "onnx":
         model = ONNXModel(path)
     elif type == "pmml":
         model = PMMLModel(path)
+    elif type == "keras":
+        model = KerasModel(path)
     else:
         return {
             "stderr": "Not implemented model type."
@@ -672,6 +1038,8 @@ def quick_predict(path, type, x_test):
         model = ONNXModel(path)
     elif type == "pmml":
         model = PMMLModel(path)
+    elif type == "keras":
+        model = KerasModel(path)
     else:
         return {
             "stderr": "Not implemented model type."
@@ -689,6 +1057,8 @@ def batch_predict(path, type, x_test):
         model = ONNXModel(path)
     elif type == "pmml":
         model = PMMLModel(path)
+    elif type == "keras":
+        model = KerasModel(path)
     else:
         return {
             "stderr": "Not implemented model type."
@@ -702,17 +1072,15 @@ def batch_predict(path, type, x_test):
 
 
 if __name__ == "__main__":
+    import os
+    path = os.path.dirname(__file__)
     info = get_model_info(
-        r"D:\Program\Github\ML-Platform\Backend\ml\xgb-iris.pmml", "pmml")
-    print(info)
-    x_test = np.array([[1.0, 2.0, 3.0, 4.0], [2, 3, 4, 5]])
+        path + r"\my_model", "keras")
+    print("keras: ", info)
 
-    print(batch_predict(
-        r"D:\Program\Github\ML-Platform\Backend\ml\xgb-iris.pmml", "pmml", x_test))
+    print("onnx: ", get_model_info(
+        path + r"\logreg_iris.onnx", "onnx"))
 
-    info = get_model_info(
-        "D:\Program\Github\ML-Platform\Backend\ml\logreg_iris.onnx", "onnx")
-    print(info)
-    x_test = x_test.reshape(2, 1, 4)
-    print(batch_predict(
-        "D:\Program\Github\ML-Platform\Backend\ml\logreg_iris.onnx", "onnx", x_test))
+    print("pmml: ", get_model_info(
+        path + r"\xgb-iris.pmml", "pmml"
+    ))

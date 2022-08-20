@@ -1,4 +1,6 @@
+from array import array
 import threading
+from tkinter.filedialog import test
 from turtle import Turtle
 
 from django.shortcuts import render
@@ -261,8 +263,9 @@ import cv2
 import zipfile
 import numpy as np
 
+
 # TODO return HttpResponse需要修改
-def start_test(request, test_file_id , model_id, mode = 'single'):
+def start_test(request, test_file_id , model_id):
     test_task =  Test_info.objects.get(id=test_file_id)
     test_file = test_task.file
     test_task.mod = Model_info.objects.get(id=model_id)
@@ -284,95 +287,123 @@ def start_test(request, test_file_id , model_id, mode = 'single'):
         input_shape = input_shape[1:]
     else:
         return HttpResponse("模型信息读取错误")
-    if mode == 'single':
-        test_file_name = test_file.name
-        if '.jpg' in test_file_name:
-            # 处理图片
-            image = cv2.imread(test_file.path)
-            global preprocess_result
-            preprocess_result = {}
-            func_str = request.POST.get('func_str')  # TODO:具体互动细节(获取脚本)
-            exec(func_str)
-            preprocessed_img = preprocess_result['result']
-            if preprocessed_img.shape != tuple(input_shape):
-                return HttpResponse("输入图片不适配此模型")
-            x_test = preprocessed_img
-        elif '.txt' in test_file_name:
-            # 处理文本
-            with open(test_file.path, 'r') as file_to_read:
-                lines = file_to_read.readline()  # 整行读取数据
-                this_lines = lines.split()
-                number_this_lines = [float(x) for x in this_lines]
-                if len(number_this_lines) != np.prod(input_shape):
-                    return HttpResponse("输入的文本行数据量不适配此模型")
-                x_test = np.array(number_this_lines).reshape(tuple(input_shape))
-        else:
-            return HttpResponse("不支持处理")
-        res['result'] = quick_predict(tested_model_path,type = tested_model_type,x_test = x_test)
-        test_task.result = res['result']
-        test_task.is_finished = True
-        test_task.save()
+    # if mode == 'single':
+    #     test_file_name = test_file.name
+    #     if '.jpg' in test_file_name:
+    #         # 处理图片
+    #         image = cv2.imread(test_file.path)
+    #         global preprocess_result
+    #         preprocess_result = {}
+    #         func_str = request.POST.get('func_str')  # TODO:具体互动细节(获取脚本)
+    #         exec(func_str)
+    #         preprocessed_img = preprocess_result['result']
+    #         if preprocessed_img.shape != tuple(input_shape):
+    #             return HttpResponse("输入图片不适配此模型")
+    #         x_test = preprocessed_img
+    #     elif '.txt' in test_file_name:
+    #         # 处理文本
+    #         with open(test_file.path, 'r') as file_to_read:
+    #             lines = file_to_read.readline()  # 整行读取数据
+    #             this_lines = lines.split()
+    #             number_this_lines = [float(x) for x in this_lines]
+    #             if len(number_this_lines) != np.prod(input_shape):
+    #                 return HttpResponse("输入的文本行数据量不适配此模型")
+    #             x_test = np.array(number_this_lines).reshape(tuple(input_shape))
+    #     else:
+    #         return HttpResponse("不支持处理")
+    #     res['result'] = quick_predict(tested_model_path,type = tested_model_type,x_test = x_test)
+    #     test_task.result = res['result']
+    #     test_task.is_finished = True
+    #     test_task.save()
+    # else:
+    x_test=[]
+    if '.zip' in test_file.name:
+        with zipfile.ZipFile(test_file.path, mode='r') as zfile:  # 只读方式打开压缩包
+            for name in zfile.namelist():  # 获取zip文档内所有文件的名称列表
+                if '.jpg' in name:
+                    with zfile.open(name, mode='r') as image_file:
+                        content = image_file.read()  # 一次性读入整张图片信息
+                        image = np.asarray(bytearray(content), dtype='uint8')
+                        image = cv2.imdecode(image, cv2.IMREAD_COLOR)
+                        global preprocess_result
+                        preprocess_result = {}
+                        func_str = request.POST.get('func_str')  # TODO:具体互动细节（获取脚本）
+                        exec(func_str)
+                        preprocessed_img = preprocess_result['result']
+                        if preprocessed_img.shape != tuple(input_shape):
+                            return HttpResponse("输入图片不适配此模型")
+                        x_test.append(preprocessed_img.tolist())
+                        # cv2.imshow('image', image)
+                elif '.txt' in name:
+                    with zfile.open(name, 'r') as file_to_read:  # 打开文件，将其值赋予file_to_read
+                        while True:
+                            lines = file_to_read.readline()  # 整行读取数据
+                            if not lines:  # 若该行为空
+                                break  # 喀嚓
+                            else:
+                                this_lines = lines.split()
+                                number_this_lines = [float(x) for x in this_lines]
+                                if len(number_this_lines) != np.prod(input_shape):
+                                    return HttpResponse("输入的文本行数据量不适配此模型")
+                                x_test.append(list(np.array(number_this_lines).reshape(tuple(input_shape))))
+            zfile.close()
+    elif '.csv' in test_file.name:
+        with open(test_file.path, mode='r', encoding='utf-8') as f:
+            input_file_string = f.read()
+            input_file_list = input_file_string.split('\n')
+            # 发现有时候最后会多一行，去掉
+            if input_file_list[-1] == "":
+                input_file_list.pop()
+            for i in range(1, len(input_file_list)):
+                # 使用zip将两组数据打包成字典
+                tmp_data = input_file_list[i].split(',')
+                number_tmp_data = [float(x) for x in tmp_data]
+                if len(number_tmp_data) != np.prod(input_shape):
+                    continue
+                x_test.append(number_tmp_data)
     else:
-        x_test=[]
-        if '.zip' in test_file.name:
-            with zipfile.ZipFile(test_file.path, mode='r') as zfile:  # 只读方式打开压缩包
-                for name in zfile.namelist():  # 获取zip文档内所有文件的名称列表
-                    if '.jpg' in name:
-                        with zfile.open(name, mode='r') as image_file:
-                            content = image_file.read()  # 一次性读入整张图片信息
-                            image = np.asarray(bytearray(content), dtype='uint8')
-                            image = cv2.imdecode(image, cv2.IMREAD_COLOR)
-                            global preprocess_result
-                            preprocess_result = {}
-                            func_str = request.POST.get('func_str')  # TODO:具体互动细节（获取脚本）
-                            exec(func_str)
-                            preprocessed_img = preprocess_result['result']
-                            if preprocessed_img.shape != tuple(input_shape):
-                                return HttpResponse("输入图片不适配此模型")
-                            x_test.append(preprocessed_img.tolist())
-                            # cv2.imshow('image', image)
-                    elif '.txt' in name:
-                        with zfile.open(name, 'r') as file_to_read:  # 打开文件，将其值赋予file_to_read
-                            while True:
-                                lines = file_to_read.readline()  # 整行读取数据
-                                if not lines:  # 若该行为空
-                                    break  # 喀嚓
-                                else:
-                                    this_lines = lines.split()
-                                    number_this_lines = [float(x) for x in this_lines]
-                                    if len(number_this_lines) != np.prod(input_shape):
-                                        return HttpResponse("输入的文本行数据量不适配此模型")
-                                    x_test.append(list(np.array(number_this_lines).reshape(tuple(input_shape))))
-                zfile.close()
-        elif '.csv' in test_file.name:
-            with open(test_file.path, mode='r', encoding='utf-8') as f:
-                input_file_string = f.read()
-                input_file_list = input_file_string.split('\n')
-                # 发现有时候最后会多一行，去掉
-                if input_file_list[-1] == "":
-                    input_file_list.pop()
-                for i in range(1, len(input_file_list)):
-                    # 使用zip将两组数据打包成字典
-                    tmp_data = input_file_list[i].split(',')
-                    number_tmp_data = [float(x) for x in tmp_data]
-                    if len(number_tmp_data) != np.prod(input_shape):
-                        continue
-                    x_test.append(number_tmp_data)
-        else:
-            return HttpResponse("不支持处理该类型文件")
+        return HttpResponse("不支持处理该类型文件")
 
-        x_test = np.array(x_test)
-        res['result'] = batch_predict(path = tested_model_path, type = tested_model_type,x_test = x_test)
-        test_task.result = res['result']
-        test_task.is_finished = True
-        test_task.save()
+    x_test = np.array(x_test)
+    res['result'] = batch_predict(path = tested_model_path, type = tested_model_type,x_test = x_test)
+    test_task.result = res['result']
+    test_task.is_finished = True
+    test_task.save()
+
     return JsonResponse(res)
 
-def new_task(request, test_file_id, mode = 'single'):
+def new_task(request, test_file_id):
     model_id = request.POST.get['model_id']
-    param_tuple = (request, test_file_id, model_id, mode)
+    param_tuple = (request, test_file_id, model_id)
     new_thread = Thread(target=start_test, args=param_tuple)
     new_thread.start()
+    
+def test_quick(request, model_id):
+    if request.method == 'POST':
+        model = Model_info.objects.get(id=model_id)
+        model_type = model.model_type
+        model_path = model.file.path
+        model_input = model.input
+        x_test = []
+        try:
+            test_data = request.POST
+            for key, value in test_data.items():
+                if isinstance(value,list):
+                    x_test += value
+                else:
+                    x_test.append(value)
+            x_test = np.array(x_test).astype(np.float32)
+            if model_type == "pmml":
+                x_test = x_test.reshape(1,len(x_test))
+            result = quick_predict(model_path,model_type,x_test)
+            print("result: ", result)
+            return JsonResponse(result,status=200)
+        except:
+            import traceback
+            traceback.print_exc()
+            return JsonResponse({"errmsg":"输入参数与模型不符"},status=400)
+    else:
+        return JsonResponse({"errmsg":"请求有误"},status=400)
 
 # 返回查询的test列表信息
 def test_all(request):

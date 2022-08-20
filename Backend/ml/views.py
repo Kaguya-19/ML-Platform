@@ -11,7 +11,7 @@ import datetime
 from django.utils import timezone
 # Create your views here.
 from .models import Model_info,Test_info,Service_info
-from .filters import ModelFilter
+from .filters import textFilter
 
 def model_add_singlemodel(name,description,model_type,file):
     model = Model_info.objects.create(name=name,description=description,model_type=model_type,file=file)
@@ -114,7 +114,7 @@ def model_all(request):
         else:
             models = Model_info.objects.order_by('id').values('name','model_type','id')
         if text != '':
-            models = ModelFilter({"name":text}, queryset=models).qs
+            models = textFilter({"name":text}, queryset=models).qs|textFilter({"description":text}, queryset=models).qs
         
         paginator = Paginator(models, pageSize)
         context = {'result':{'data':list(paginator.page(pageNo)),
@@ -221,20 +221,35 @@ def model_change(request, model_id):
     return resp
 
 def fast_test(request,id,type='model'):
-    input_x = dict()
-    for key in request.FILES:
-        input_x[key] = request.FILES[key]
-    for key in request.POST:
-        input_x[key] = request.POST[key]
+    # input_x = dict()
+    # for key in request.FILES:
+    #     input_x[key] = request.FILES[key]
+    # for key in request.POST:
+    #     input_x[key] = request.POST[key]
+    x_test = []
     if type == 'model':
         model = Model_info.objects.get(id=id)
     else:
         mod = Service_info.objects.get(id=id).mod
         model = Model_info.objects.get(id=mod)
-    tested_model_path = model.file.path
-    tested_model_type = model.model_type
+    model_path = model.file.path
+    model_type = model.model_type
     # TODO: 预处理
-    return quick_predict(tested_model_path,type = tested_model_type,x_test = input_x)
+    # TODO:base64处理
+    test_data = request.POST
+    for key, value in test_data.items():
+        if isinstance(value,list):
+            x_test += value
+        else:
+            x_test.append(value)
+    x_test = np.array(x_test).astype(np.float32)
+    for key in request.FILES:
+        x_test += np.load(request.FILES[key])
+    x_test = np.array(x_test).astype(np.float32)
+    if model_type == "pmml":
+        x_test = x_test.reshape(1,len(x_test))
+    # TODO: 预处理
+    return quick_predict(model_path,type = model_type,x_test = x_test)
 
 def test_add(request,model_id):
     res = dict()
@@ -251,37 +266,37 @@ def test_add(request,model_id):
         resp.status_code = 400
     return resp
 
+def task_fast_add(request, service_id):
+    res = dict()
+    willContinue = True
+    try:
+        service = Service_info.objects.get(id=service_id)
+        mod = Model_info.objects.get(id=service.mod)
+        res['result'] = fast_test(request,service_id,type='service')
+    except:
+        res = {"errmsg":"Request error"}
+        willContinue = False
+    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
+    if willContinue:
+        resp.status_code = 200
+    else:
+        resp.status_code = 400
+    return resp
+
 def task_add(request, service_id):
     res = dict()
     willContinue = True
     try:
-        test_type = request.GET['type']
-    except:
-        res = {"errmsg":"Request error"}
-        willContinue = False
-    try:
-        message = request.POST.get('message','')
+        description = request.POST.get('description','')
         service = Service_info.objects.get(id=service_id)
         mod = Model_info.objects.get(id=service.mod)
-        if 'file' in request.FILES:
-            test.tested_file = request.FILES['file']
-        test = Test_info.objects.create(message=message,service=service,mod=mod,test_type=test_type)
+        test.tested_file = request.FILES['file']
+        test = Test_info.objects.create(description=description,service=service,mod=mod)
         test.save()
-        if test_type == 'fast':
-            res['result'] = fast_test(request,service_id,type='service')
-            test.recent_modified_time = timezone.now()
-            test.end_time = timezone.now()
-            test.is_finished = True
-            test.save()
-            service.average_use_time = \
-                (service.average_use_time * service.use_times + test.end_time - test.start_time)/(service.use_times + 1)
-            service.use_times = service.use_times + 1
-            service.save()
-        else:
-            new_task(request,test.id ,service.id, mode = 'multiple')
-            res['task_id'] = test.id
-            service.use_times = service.use_times + 1
-            service.save()
+        new_task(request,test.id ,service.id, mode = 'multiple')
+        res['task_id'] = test.id
+        service.use_times = service.use_times + 1
+        service.save()
     except:
         try:
             os.remove(test.tested_file.path)
@@ -357,9 +372,14 @@ def start_test(test_file_id , service_id, mode = 'single'):
             test_task.recent_modified_time = timezone.now()
             test_task.end_time = timezone.now()
             test_task.save()
+            _,deltaTime = divmod((test_task.end_time - test_task.start_time).total_seconds(), 60)
             service.average_use_time = \
-                (service.average_use_time * service.use_times + test_task.end_time - test_task.start_time)/(service.use_times + 1)
+                (service.average_use_time * service.use_times + deltaTime)/(service.use_times + 1)
             service.use_times = service.use_times + 1
+            if deltaTime > service.max_use_time:
+                service.max_use_time = deltaTime
+            if deltaTime < service.min_use_time:
+                service.min_use_time = deltaTime
             service.save()
             test_task.save()
     except:
@@ -404,16 +424,16 @@ def test_all(request):
     try:
         pageNo = int(request.GET.get('pageNo',1))
         pageSize = int(request.GET.get('pageSize',10))
-        message = request.GET.get('message','')
+        description = request.GET.get('description','')
         is_finished = request.GET.get('is_finished',0)
 
         if is_finished != '':
-            tests = Test_info.objects.filter(is_finished=is_finished).order_by('id').values('message','is_finished','id','recent_modified_time')
+            tests = Test_info.objects.filter(is_finished=is_finished).order_by('id').values('description','is_finished','id','recent_modified_time')
             print(tests)
         else:
-            tests = Model_info.objects.order_by('id').values('message','is_finished','id','recent_modified_time')
-        if message != '':
-            tests = ModelFilter({"message":message}, queryset=tests).qs
+            tests = Model_info.objects.order_by('id').values('description','is_finished','id','recent_modified_time')
+        if description != '':
+            tests = textFilter({"description":description}, queryset=tests).qs
 
         paginator = Paginator(tests, pageSize)
         context = {'result':{'data':list(paginator.page(pageNo)),
@@ -430,6 +450,8 @@ def test_all(request):
 def test_api(request):
     if request.method == 'GET':
         return test_all(request)
+    elif request.method == 'POST':
+        return task_add(request)
     else:
         return JsonResponse({"errmsg":"请求有误"},status=400)
 
@@ -488,21 +510,21 @@ def test_change(request, test_id):
     print(request.PUT)
     try:
         test = Test_info.objects.get(id=test_id)
-        message = request.PUT.get('message')
+        description = request.PUT.get('description')
         is_finished = request.PUT.get('is_finished',test.is_finished)
 
         # 此处不能改文件
         # if 'tested_file' in request.FILES:
         #     test.file = request.FILES['tested_file']
         test.recent_modified_time = timezone.now()
-        test.message = message
+        test.description = description
         test.is_finished = is_finished
         test.save()  
     except:
         res = {"errmsg":"修改测试文件失败"}
         willContinue = False
     
-    res['message'] = message
+    res['description'] = description
     res['is_finished'] = test.is_finished
     resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
     if willContinue:
@@ -528,7 +550,7 @@ def service_info_api(request, service_id):
         # 暂停，启动等操作
         return service_change(request, service_id)
     elif request.method == 'POST':
-        return task_add(request, service_id)
+        return task_fast_add(request, service_id)
     else:
         return JsonResponse({"errmsg":"请求有误"},status=400)
 
@@ -560,7 +582,7 @@ def service_all(request):
         pageNo = int(request.GET.get('pageNo',1))
         pageSize = int(request.GET.get('pageSize',10))
 
-        name = request.GET.get('name','')
+        text = request.GET.get('name','')
         model_id = request.GET.get('model_id',-1)
         status = request.GET.get('status',-1)
 
@@ -573,10 +595,10 @@ def service_all(request):
             services = Service_info.objects.order_by('id').values('name','description','id','create_time',
                                                                 'recent_modified_time','status','average_use_time','use_times')
 
-        if name != '':
-            services = ModelFilter({"name":name}, queryset=services).qs
+        if text != '':
+            services = textFilter({"name":text}, queryset=services).qs|textFilter({"description":text}, queryset=services).qs
         if status != -1:
-            services = ModelFilter({"status":status}, queryset=services).qs
+            services = services.filter(status=status).order_by('id')
 
         paginator = Paginator(services, pageSize)
         context = {'result':{'data':list(paginator.page(pageNo)),

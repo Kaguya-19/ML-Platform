@@ -413,8 +413,6 @@ export default {
       return false
     },
     testBeforeUpload (file) {
-      this.testFileList.push(file)
-      this.fileChanged = true
       return false
     },
     handleSubmit (e) {
@@ -474,7 +472,7 @@ export default {
           }
           console.log(`formData`, formData) // TODO: waiting anime
           axios({
-            url: `/ml/test/quick/${this.model_id}`, // TODO
+            url: `/ml/model/${this.model_id}`, // TODO
             method: 'post',
             processData: false,
             headers: {
@@ -509,12 +507,9 @@ export default {
       formData.append(key, jsonJson[key])
       })
       axios({
-        url: `/ml/test/quick/${this.model_id}`, // TODO
+        url: `/ml/model/${this.model_id}`, // TODO
         method: 'post',
         processData: false,
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
         data: jsonJson
       }).then(res => {
         this.$message.success('upload successfully.')

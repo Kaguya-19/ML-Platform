@@ -24,9 +24,6 @@
     </template>
     <!-- 部署测试 -->
     <template v-if="page=='test'">
-      <a-modal v-model="visible" title="Curl" @ok="handleOk">
-        <div>{{ curlStr }}</div>
-      </a-modal>
       <a-row type="flex" :gutter="16">
         <a-col :span="12">
           <a-card title="Input" :bordered="false" v-if="isJSON">
@@ -36,8 +33,8 @@
               v-model="jsonStr"
             />
             <!-- <a-button @click.prevent="reset">Clear</a-button> -->
-            <a-button type="primary" @click.stop="submitJSON" style="margin-left: 16px">Submit</a-button>
-            <a-button type="primary" @click.stop="jsonCurl" style="margin-left: 16px">Curlcode</a-button>
+            <a-button type="primary" @click="submitJSON" style="margin-left: 16px">Submit</a-button>
+            <a-button type="primary" @click="jsonCurl" style="margin-left: 16px">Curlcode</a-button>
           </a-card>
           <a-card title="Input" :bordered="false" v-else>
             <template #extra><a @click.stop="toJSON">JSON</a></template>
@@ -75,7 +72,7 @@
               <a-form-item :wrapper-col="{ span: 14, offset: 15 }">
                 <!-- <a-button @click.prevent="reset">Clear</a-button> -->
                 <a-button type="primary" htmlType="submit" style="margin-left: 16px">Submit</a-button>
-                <a-button type="primary" @click.stop="formCurl" style="margin-left: 16px">Curlcode</a-button>
+                <a-button type="primary" @click="formCurl" style="margin-left: 16px">Curlcode</a-button>
               </a-form-item>
             </a-form>
 
@@ -215,7 +212,6 @@ export default {
       form: this.$form.createForm(this),
       testRes: 'Here is result!',
 
-      visible: false,
       curlStr: ''
     }
   },
@@ -316,9 +312,6 @@ export default {
             url: `/ml/deploy/${this.deploy_id}`,
             method: 'post',
             processData: false,
-            params: {
-              'type': 'fast'
-            },
             data: formData
             }).then(res => {
                 this.$message.success('upload successfully.')
@@ -467,7 +460,7 @@ export default {
       })
     },
     jsonCurl () {
-      this.curlStr = `curl --location --request POST 'http://127.0.0.1:8001/ml/deploy/${this.deploy_id}?type=fast'`
+      this.curlStr = `curl --location --request POST 'http://127.0.0.1:8001/ml/deploy/${this.deploy_id}'`
       try {
       var jsonJson = JSON.parse(this.jsonStr)
       } catch (err) {
@@ -479,12 +472,17 @@ export default {
       for (var v in jsonJson) {
         this.curlStr += ` \\\n--form '${v}="${jsonJson[v]}"'`
       }
-      this.visible = true
+      this.$info({
+        title: 'CURL',
+        content: this.curlStr,
+        onOk () {},
+        onCancel () {}
+      })
     },
     formCurl () {
       this.form.validateFields((err, values) => {
         if (!err) {
-          this.curlStr = `curl --location --request POST 'http://127.0.0.1:8001/ml/deploy/${this.deploy_id}?type=fast'`
+          this.curlStr = `curl --location --request POST 'http://127.0.0.1:8001/ml/deploy/${this.deploy_id}'`
           for (var v in values) {
            try {
             const reader = new FileReader()
@@ -499,10 +497,12 @@ export default {
           }
         }
       })
-      this.visible = true
-    },
-    handleOk () {
-      this.visible = false
+      this.$info({
+        title: 'CURL',
+        content: this.curlStr,
+        onOk () {},
+        onCancel () {}
+      })
     },
     taskFormSubmit (e) {
       e.preventDefault()
@@ -519,14 +519,12 @@ export default {
             formData.append(v, values[v])
            }
           }
+          formData.append('service', this.deploy_id)
           console.log(values) // TODO: waiting anime
           axios({
-            url: `/ml/deploy/${this.deploy_id}`,
+            url: `/ml/test`,
             method: 'post',
             processData: false,
-            params: {
-              'type': 'batch'
-            },
             data: formData
             }).then(res => {
                 this.$message.success('upload successfully.')

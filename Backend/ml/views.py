@@ -366,11 +366,15 @@ def start_test(test_file_id , service_id, mode = 'mulitply'):
                             image = cv2.imdecode(image, cv2.IMREAD_COLOR)
                             global preprocess_result
                             preprocess_result = {}
-                            func_str = request.POST.get('func_str')  # TODO:具体互动细节（获取脚本）
+                            func_str = service.func_str  # TODO:具体互动细节（获取脚本）
                             exec(func_str)
                             preprocessed_img = preprocess_result['result']
                             if preprocessed_img.shape != tuple(input_shape):
-                                return HttpResponse("输入图片不适配此模型")
+                                res = {"errmsg":"输入图片不适配此模型"}
+                                test_task.result = res
+                                test_task.is_finished = True
+                                test_task.save()
+                                return
                             x_test.append(preprocessed_img.tolist())
                             # cv2.imshow('image', image)
                     elif '.txt' in name:
@@ -383,7 +387,11 @@ def start_test(test_file_id , service_id, mode = 'mulitply'):
                                     this_lines = lines.split()
                                     number_this_lines = [float(x) for x in this_lines]
                                     if len(number_this_lines) != np.prod(input_shape):
-                                        return HttpResponse("输入的文本行数据量不适配此模型")
+                                        res = {"errmsg":"输入的文本行数据量不适配此模型"}
+                                        test_task.result = res
+                                        test_task.is_finished = True
+                                        test_task.save()
+                                        return
                                     x_test.append(list(np.array(number_this_lines).reshape(tuple(input_shape))))
                 zfile.close()
         elif '.csv' in test_file.name:
@@ -401,9 +409,12 @@ def start_test(test_file_id , service_id, mode = 'mulitply'):
                         continue
                     x_test.append(number_tmp_data)
         else:
-            return HttpResponse("不支持处理该类型文件")
-            # TODO 集中np转化
-        res['result'] = batch_predict(path = tested_model_path, type = tested_model_type,x_test = test_file)
+            res = {"errmsg":"不支持处理该类型文件"}
+            test_task.result = res
+            test_task.is_finished = True
+            test_task.save()
+            return
+        res['result'] = batch_predict(path = tested_model_path, type = tested_model_type,x_test = x_test)
         test_task.result = res['result']
         test_task.is_finished = True
         test_task.recent_modified_time = timezone.now()
@@ -421,7 +432,7 @@ def start_test(test_file_id , service_id, mode = 'mulitply'):
         test_task.save()
     except:
         JsonResponse({"errmsg":"获取信息失败"},status=400)
-    return JsonResponse(res)
+    return
 
 def new_task(test_file_id, service_id):
     param_tuple = (test_file_id, service_id)
@@ -701,11 +712,13 @@ def service_change(request, service_id):
         description = request.PUT.get('description',service.description)
         # TODO 改了状态后停止/启动/删除的反应
         status = request.PUT.get('status',service.status)
+        func_str = request.PUT.get('func_str',service.func_str)
 
         service.recent_modified_time = timezone.now()
         service.name = name
         service.description = description
         service.status = status
+        service.func_str = func_str
 
         service.save()  
         res = model_to_dict(service)

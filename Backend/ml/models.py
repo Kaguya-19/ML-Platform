@@ -26,6 +26,7 @@ class Service_info(models.Model):
     min_use_time = models.IntegerField(blank=True,null=True,default=2147483647)
     max_use_time = models.IntegerField(blank=True,null=True,default=0)
     use_times = models.IntegerField(blank=True,null=True,default=0) # 使用次数
+    func_str = models.TextField(blank=True,null=True,default='',max_length=100000)
 
 
 # 一个service->多个test，或者test不对应service

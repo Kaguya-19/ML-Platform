@@ -5,6 +5,7 @@
       <a-menu-item @click="showPage('info')">Service infomation</a-menu-item>
       <a-menu-item @click="showPage('test')">Fast test</a-menu-item>
       <a-menu-item @click="showPage('task')">Task</a-menu-item>
+      <a-menu-item @click="showPage('pro')">Preprocess</a-menu-item>
       <a-menu-item @click="showPage('list')">List</a-menu-item>
     </a-menu>
     <!-- 部署概述 -->
@@ -161,6 +162,36 @@
 
         </a-row>
       </template>
+      <template v-if="page=='pro'">
+        <a-row type="flex" :gutter="16">
+          <a-col :span="12">
+            <a-card title="Input" :bordered="false">
+              <a-form @submit="funcSubmit" :form="form">
+                <a-form-item
+                  label="Preprocess Function"
+                  :labelCol="{ lg: { span: 7 }, sm: { span: 7 } }"
+                  :wrapperCol="{ lg: { span: 10 }, sm: { span: 17 } }">
+                  <a-textarea
+                    rows="4"
+                    v-decorator="[
+                      'func_str',
+                      {
+                        rules: [{ required: true }],
+                        initialValue: func_str
+                      }
+                    ]" />
+                </a-form-item>
+                <a-form-item :wrapper-col="{ span: 14, offset: 15 }">
+                  <!-- <a-button @click.prevent="reset">Clear</a-button> -->
+                  <a-button type="primary" htmlType="submit" style="margin-left: 16px">Submit</a-button>
+                </a-form-item>
+              </a-form>
+            </a-card>
+          </a-col>
+          <a-col :span="12">
+          </a-col>
+        </a-row>
+      </template>
     </a-spin>
   </page-header-wrapper>
 </template>
@@ -261,6 +292,7 @@ export default {
       isFile: {},
       form: this.$form.createForm(this),
       testRes: 'Here is result!',
+      func_str: '',
 
       curlStr: '',
       spinning: false,
@@ -336,6 +368,7 @@ export default {
             this.serviceDescription = res.data.description
             this.serviceStatus = res.data.status
             this.serviceName = res.data.name
+            this.func_str = res.data.func_str
             this.getModelInfo()
             }).catch(err => {
             this.spinning = false
@@ -655,6 +688,46 @@ export default {
                   },
                   onCancel () {}
                 })
+              }).catch(err => {
+              this.spinning = false
+              console.log(err)
+              try {
+                this.$message.error(err.response.data.errmsg)
+              } catch (err) {
+                this.$message.error('Failed.')
+                }
+            })
+        }
+      })
+    },
+    funcSubmit (e) {
+      e.preventDefault()
+      console.log(this.form)
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          this.spinning = true
+          var formData = new FormData()
+          console.log(values)
+          for (var v in values) {
+           try {
+            formData.append(v, values[v].file)
+           } catch (err) {
+            console.log(err)
+            formData.append(v, values[v])
+           }
+          }
+          console.log(values) 
+          axios({
+            url: `/ml/deploy/${this.deploy_id}`,
+            method: 'put',
+            processData: false,
+            headers: {
+               'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            data: formData
+            }).then(res => {
+                this.spinning = false
+                this.$message.success('upload successfully.')
               }).catch(err => {
               this.spinning = false
               console.log(err)

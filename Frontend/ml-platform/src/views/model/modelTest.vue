@@ -354,7 +354,7 @@ export default {
         this.isFile[v] = false
       }
       this.isJSON = !this.isJSON
-    },
+      },
     // handler
     getInfo () {
       this.spinning = true
@@ -377,11 +377,11 @@ export default {
             if ('shape' in this.inputData[i]) {
               this.inputData[i].shape = '[' + String(this.inputData[i].shape) + ']'
             }
-          }
-          this.jsonStr = JSON.stringify(jsonJson)
-          this.outputData = res.data.output
-          for (let i = 0; i < this.outputData.length; i++) {
-            if ('shape' in this.outputData[i]) {
+            }
+            this.jsonStr = JSON.stringify(jsonJson)
+            this.outputData = res.data.output
+            for (let i = 0; i < this.outputData.length; i++) {
+              if ('shape' in this.outputData[i]) {
               this.outputData[i].shape = '[' + String(this.outputData[i].shape) + ']'
             }
           }
@@ -418,11 +418,11 @@ export default {
           var formData = new FormData()
           console.log(values)
           if (this.fileChanged) {
-            formData.append('file', values['file'].file)
+          formData.append('file', values['file'].file)
           }
           for (var v in values) {
-            if (v !== 'file') {
-              formData.append(v, values[v])
+           if (v !== 'file') {
+            formData.append(v, values[v])
             }
           }
           console.log(values)
@@ -431,7 +431,7 @@ export default {
             method: 'put',
             processData: false,
             headers: {
-              'Content-Type': 'application/x-www-form-urlencoded'
+               'Content-Type': 'application/x-www-form-urlencoded'
             },
             data: formData
           }).then(res => {
@@ -471,7 +471,7 @@ export default {
             method: 'post',
             processData: false,
             headers: {
-              'Content-Type': 'application/x-www-form-urlencoded'
+               'Content-Type': 'application/x-www-form-urlencoded'
             },
             data: formData
           }).then(res => {
@@ -493,7 +493,7 @@ export default {
     },
     submitJSON () {
       try {
-        var jsonJson = JSON.parse(this.jsonStr)
+      var jsonJson = JSON.parse(this.jsonStr)
       } catch (err) {
         console.log(err)
         this.$message.error('json error.')

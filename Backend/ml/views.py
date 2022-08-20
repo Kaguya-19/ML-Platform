@@ -338,55 +338,87 @@ def start_test(test_file_id , service_id, mode = 'mulitply'):
     test_file = test_task.tested_file
     test_task.threadID = threading.currentThread().ident
     test_task.is_finished = False
-    test_task.save()
     res = {}
+    test_task.result = res
+    test_task.save()
+    tested_model_type = test_task.mod.model_type
+    tested_model_path = test_task.mod.file.path
+    service = Service_info.objects.get(id=service_id)
     try:
-        tested_model_type = test_task.mod.model_type
-        tested_model_path = test_task.mod.file.path
-        service = Service_info.objects.get(id=service_id)
-        # TODO test_file预处理
-        if mode == 'single':
-            res['result'] = quick_predict(tested_model_path,type = tested_model_type,x_test = test_file)
-            test_task.result = res['result']
-            test_task.is_finished = True
-            test_task.save()
+        input_info = test_task.mod.input
+        if tested_model_type == 'pmml':
+            input_shape = len(input_info)
+        elif tested_model_type == 'onnx':
+            input_shape = input_info[0]['shape']
+        elif tested_model_type == 'keras':
+            input_shape = input_info[0]['shape']
+            input_shape = input_shape[1:]
         else:
-            # 不解压直接读取zip中的图片
-            try:
-                with zipfile.ZipFile(test_file.path, mode='r') as zfile:  # 只读方式打开压缩包
-
-                    for name in zfile.namelist():
-                        if '.jpg' not in name:
-                            continue
-
+            return
+        x_test=[]
+        if '.zip' in test_file.name:
+            with zipfile.ZipFile(test_file.path, mode='r') as zfile:  # 只读方式打开压缩包
+                for name in zfile.namelist():  # 获取zip文档内所有文件的名称列表
+                    if '.jpg' in name:
                         with zfile.open(name, mode='r') as image_file:
                             content = image_file.read()  # 一次性读入整张图片信息
                             image = np.asarray(bytearray(content), dtype='uint8')
                             image = cv2.imdecode(image, cv2.IMREAD_COLOR)
-                            cv2.imshow('image', image)
-
-                    zfile.close()
-                    # TODO 集中np转化
-                res['result'] = batch_predict(path = tested_model_path, type = tested_model_type,x_test = test_file)
-                test_task.result = res['result']
-                test_task.is_finished = True
-                test_task.recent_modified_time = timezone.now()
-                test_task.end_time = timezone.now()
-                test_task.save()
-                _,deltaTime = divmod((test_task.end_time - test_task.start_time).total_seconds(), 60)
-                service.average_use_time = \
-                    (service.average_use_time * service.use_times + deltaTime)/(service.use_times + 1)
-                service.use_times = service.use_times + 1
-                if deltaTime > service.max_use_time:
-                    service.max_use_time = deltaTime
-                if deltaTime < service.min_use_time:
-                    service.min_use_time = deltaTime
-                service.save()
-                test_task.save()
-            except:
-                test_task.result = {'errmsg':'error'}
-                test_task.is_finished = True
-                test_task.save()
+                            global preprocess_result
+                            preprocess_result = {}
+                            func_str = request.POST.get('func_str')  # TODO:具体互动细节（获取脚本）
+                            exec(func_str)
+                            preprocessed_img = preprocess_result['result']
+                            if preprocessed_img.shape != tuple(input_shape):
+                                return HttpResponse("输入图片不适配此模型")
+                            x_test.append(preprocessed_img.tolist())
+                            # cv2.imshow('image', image)
+                    elif '.txt' in name:
+                        with zfile.open(name, 'r') as file_to_read:  # 打开文件，将其值赋予file_to_read
+                            while True:
+                                lines = file_to_read.readline()  # 整行读取数据
+                                if not lines:  # 若该行为空
+                                    break  # 喀嚓
+                                else:
+                                    this_lines = lines.split()
+                                    number_this_lines = [float(x) for x in this_lines]
+                                    if len(number_this_lines) != np.prod(input_shape):
+                                        return HttpResponse("输入的文本行数据量不适配此模型")
+                                    x_test.append(list(np.array(number_this_lines).reshape(tuple(input_shape))))
+                zfile.close()
+        elif '.csv' in test_file.name:
+            with open(test_file.path, mode='r', encoding='utf-8') as f:
+                input_file_string = f.read()
+                input_file_list = input_file_string.split('\n')
+                # 发现有时候最后会多一行，去掉
+                if input_file_list[-1] == "":
+                    input_file_list.pop()
+                for i in range(1, len(input_file_list)):
+                    # 使用zip将两组数据打包成字典
+                    tmp_data = input_file_list[i].split(',')
+                    number_tmp_data = [float(x) for x in tmp_data]
+                    if len(number_tmp_data) != np.prod(input_shape):
+                        continue
+                    x_test.append(number_tmp_data)
+        else:
+            return HttpResponse("不支持处理该类型文件")
+            # TODO 集中np转化
+        res['result'] = batch_predict(path = tested_model_path, type = tested_model_type,x_test = test_file)
+        test_task.result = res['result']
+        test_task.is_finished = True
+        test_task.recent_modified_time = timezone.now()
+        test_task.end_time = timezone.now()
+        test_task.save()
+        _,deltaTime = divmod((test_task.end_time - test_task.start_time).total_seconds(), 60)
+        service.average_use_time = \
+            (service.average_use_time * service.use_times + deltaTime)/(service.use_times + 1)
+        service.use_times = service.use_times + 1
+        if deltaTime > service.max_use_time:
+            service.max_use_time = deltaTime
+        if deltaTime < service.min_use_time:
+            service.min_use_time = deltaTime
+        service.save()
+        test_task.save()
     except:
         JsonResponse({"errmsg":"获取信息失败"},status=400)
     return JsonResponse(res)

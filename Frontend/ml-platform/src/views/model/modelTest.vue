@@ -466,18 +466,20 @@ export default {
           var formData = new FormData()
           console.log(values)
           for (var v in values) {
-           try {
-            formData.append(v, values[v].file)
-           } catch (err) {
-            console.log(err)
-            formData.append(v, values[v])
-           }
+           if (this.isFile[v]) {
+              formData.append(v, values[v].file)
+            } else {
+              formData.append(v, values[v])
+            }
           }
-          console.log(values) // TODO: waiting anime
+          console.log(`formData`, formData) // TODO: waiting anime
           axios({
             url: `/ml/test/quick/${this.model_id}`, // TODO
             method: 'post',
             processData: false,
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded'
+            },
             data: formData
           }).then(res => {
             this.$message.success('upload successfully.')

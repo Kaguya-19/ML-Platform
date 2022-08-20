@@ -109,15 +109,18 @@ def model_all(request):
         model_type = request.GET.get('model_type','')
         
         if model_type != '':
-            models = Model_info.objects.filter(model_type=model_type).order_by('id').values('name','model_type','id')
-            print(models)
+            models = Model_info.objects.filter(model_type=model_type).order_by('id').values('name','model_type','id','add_time','description')
         else:
-            models = Model_info.objects.order_by('id').values('name','model_type','id')
+            models = Model_info.objects.order_by('id').values('name','model_type','id','add_time','description')
         if text != '':
             models = textFilter({"name":text}, queryset=models).qs|textFilter({"description":text}, queryset=models).qs
         
         paginator = Paginator(models, pageSize)
-        context = {'result':{'data':list(paginator.page(pageNo)),
+        se = list(paginator.page(pageNo))
+        for inf in se:
+            inf['add_time']=inf['add_time'].strftime("%Y-%m-%d %H:%M")
+            inf['description']=inf['description'][:25]
+        context = {'result':{'data':se,
                              'pageSize':pageSize,
                              'pageNo':pageNo,
                              'totalCount':models.count(),
@@ -146,7 +149,7 @@ def model_info(request, model_id):
         model = Model_info.objects.get(id=model_id)
         res = model_to_dict(model)
         res['file']=BASE_URL+res['file'].url
-        res['addTime'] = model.addTime.strftime("%Y-%m-%d %H:%M")
+        res['add_time'] = model.add_time.strftime("%Y-%m-%d %H:%M")
     except:
         res = {"errmsg":"读取模型信息失败"}
         willContinue = False
@@ -230,8 +233,7 @@ def fast_test(request,id,type='model'):
     if type == 'model':
         model = Model_info.objects.get(id=id)
     else:
-        mod = Service_info.objects.get(id=id).mod
-        model = Model_info.objects.get(id=mod)
+        model = Service_info.objects.get(id=id).mod
     model_path = model.file.path
     model_type = model.model_type
     # TODO: 预处理
@@ -271,7 +273,6 @@ def task_fast_add(request, service_id):
     willContinue = True
     try:
         service = Service_info.objects.get(id=service_id)
-        mod = Model_info.objects.get(id=service.mod)
         res['result'] = fast_test(request,service_id,type='service')
     except:
         res = {"errmsg":"Request error"}
@@ -283,20 +284,19 @@ def task_fast_add(request, service_id):
         resp.status_code = 400
     return resp
 
-def task_add(request, service_id):
+def task_add(request):
     res = dict()
     willContinue = True
     try:
         description = request.POST.get('description','')
+        service_id = request.POST.get('service_id')
         service = Service_info.objects.get(id=service_id)
-        mod = Model_info.objects.get(id=service.mod)
-        test.tested_file = request.FILES['file']
+        mod = service.mod
         test = Test_info.objects.create(description=description,service=service,mod=mod)
+        test.tested_file = request.FILES['file']
         test.save()
-        new_task(request,test.id ,service.id, mode = 'multiple')
+        new_task(test.id ,service.id)
         res['task_id'] = test.id
-        service.use_times = service.use_times + 1
-        service.save()
     except:
         try:
             os.remove(test.tested_file.path)
@@ -333,9 +333,9 @@ import cv2
 import zipfile
 import numpy as np
 
-def start_test(test_file_id , service_id, mode = 'single'):
+def start_test(test_file_id , service_id, mode = 'mulitply'):
     test_task =  Test_info.objects.get(id=test_file_id)
-    test_file = test_task.file
+    test_file = test_task.tested_file
     test_task.threadID = threading.currentThread().ident
     test_task.is_finished = False
     test_task.save()
@@ -352,43 +352,47 @@ def start_test(test_file_id , service_id, mode = 'single'):
             test_task.save()
         else:
             # 不解压直接读取zip中的图片
-            with zipfile.ZipFile(test_file.path, mode='r') as zfile:  # 只读方式打开压缩包
+            try:
+                with zipfile.ZipFile(test_file.path, mode='r') as zfile:  # 只读方式打开压缩包
 
-                for name in zfile.namelist():
-                    if '.jpg' not in name:
-                        continue
+                    for name in zfile.namelist():
+                        if '.jpg' not in name:
+                            continue
 
-                    with zfile.open(name, mode='r') as image_file:
-                        content = image_file.read()  # 一次性读入整张图片信息
-                        image = np.asarray(bytearray(content), dtype='uint8')
-                        image = cv2.imdecode(image, cv2.IMREAD_COLOR)
-                        cv2.imshow('image', image)
+                        with zfile.open(name, mode='r') as image_file:
+                            content = image_file.read()  # 一次性读入整张图片信息
+                            image = np.asarray(bytearray(content), dtype='uint8')
+                            image = cv2.imdecode(image, cv2.IMREAD_COLOR)
+                            cv2.imshow('image', image)
 
-                zfile.close()
-                # TODO 集中np转化
-            res['result'] = batch_predict(path = tested_model_path, type = tested_model_type,x_test = test_file)
-            test_task.result = res['result']
-            test_task.is_finished = True
-            test_task.recent_modified_time = timezone.now()
-            test_task.end_time = timezone.now()
-            test_task.save()
-            _,deltaTime = divmod((test_task.end_time - test_task.start_time).total_seconds(), 60)
-            service.average_use_time = \
-                (service.average_use_time * service.use_times + deltaTime)/(service.use_times + 1)
-            service.use_times = service.use_times + 1
-            if deltaTime > service.max_use_time:
-                service.max_use_time = deltaTime
-            if deltaTime < service.min_use_time:
-                service.min_use_time = deltaTime
-            service.save()
-            test_task.save()
+                    zfile.close()
+                    # TODO 集中np转化
+                res['result'] = batch_predict(path = tested_model_path, type = tested_model_type,x_test = test_file)
+                test_task.result = res['result']
+                test_task.is_finished = True
+                test_task.recent_modified_time = timezone.now()
+                test_task.end_time = timezone.now()
+                test_task.save()
+                _,deltaTime = divmod((test_task.end_time - test_task.start_time).total_seconds(), 60)
+                service.average_use_time = \
+                    (service.average_use_time * service.use_times + deltaTime)/(service.use_times + 1)
+                service.use_times = service.use_times + 1
+                if deltaTime > service.max_use_time:
+                    service.max_use_time = deltaTime
+                if deltaTime < service.min_use_time:
+                    service.min_use_time = deltaTime
+                service.save()
+                test_task.save()
+            except:
+                test_task.result = {'errmsg':'error'}
+                test_task.is_finished = True
+                test_task.save()
     except:
         JsonResponse({"errmsg":"获取信息失败"},status=400)
     return JsonResponse(res)
 
-def new_task(request, test_file_id):
-    model_id = request.POST.get['model_id']
-    param_tuple = (test_file_id, model_id)
+def new_task(test_file_id, service_id):
+    param_tuple = (test_file_id, service_id)
     new_thread = Thread(target=start_test, args=param_tuple)
     new_thread.start()
     
@@ -428,15 +432,20 @@ def test_all(request):
         is_finished = request.GET.get('is_finished',0)
 
         if is_finished != '':
-            tests = Test_info.objects.filter(is_finished=is_finished).order_by('id').values('description','is_finished','id','recent_modified_time')
+            tests = Test_info.objects.filter(is_finished=is_finished).order_by('id').values('description','is_finished','id','add_time','recent_modified_time')
             print(tests)
         else:
-            tests = Model_info.objects.order_by('id').values('description','is_finished','id','recent_modified_time')
+            tests = Model_info.objects.order_by('id').values('description','is_finished','id','add_time','recent_modified_time')
         if description != '':
             tests = textFilter({"description":description}, queryset=tests).qs
-
+        
         paginator = Paginator(tests, pageSize)
-        context = {'result':{'data':list(paginator.page(pageNo)),
+        se = list(paginator.page(pageNo))
+        for inf in se:
+            inf['add_time']=inf['add_time'].strftime("%Y-%m-%d %H:%M")
+            inf['recent_modified_time']=inf['recent_modified_time'].strftime("%Y-%m-%d %H:%M")
+            inf['description']=inf['description'][:25]
+        context = {'result':{'data':se,
                              'pageSize':pageSize,
                              'pageNo':pageNo,
                              'totalCount':tests.count(),
@@ -474,8 +483,8 @@ def test_info(request, test_id):
         if test.tested_file != None:
             res['tested_file']=BASE_URL+res['tested_file'].url
         res['add_time'] = test.add_time.strftime("%Y-%m-%d %H:%M")
-        res['recent_modified_time'] = test.add_time.strftime("%Y-%m-%d %H:%M")
-        res['endtime'] = test.endtime.strftime("%Y-%m-%d %H:%M")
+        res['recent_modified_time'] = test.recent_modified_time.strftime("%Y-%m-%d %H:%M")
+        res['end_time'] = test.end_time.strftime("%Y-%m-%d %H:%M")
     except:
         res = {"errmsg":"读取测试信息失败，可能您输入的测试文件已被删除"}
         willContinue = False
@@ -587,21 +596,25 @@ def service_all(request):
         status = request.GET.get('status',-1)
 
         if model_id != -1:
-            services = Service_info.objects.filter(model__id = model_id,).order_by('id').values('name','description','id','create_time',
+            services = Service_info.objects.filter(model__id = model_id,).order_by('id').values('name','description','id','add_time',
                                                                         'recent_modified_time','status','average_use_time','use_times')
             print(services)
         else:
             # 不进行模型的筛选
-            services = Service_info.objects.order_by('id').values('name','description','id','create_time',
+            services = Service_info.objects.order_by('id').values('name','description','id','add_time',
                                                                 'recent_modified_time','status','average_use_time','use_times')
 
         if text != '':
             services = textFilter({"name":text}, queryset=services).qs|textFilter({"description":text}, queryset=services).qs
         if status != -1:
             services = services.filter(status=status).order_by('id')
-
+        
         paginator = Paginator(services, pageSize)
-        context = {'result':{'data':list(paginator.page(pageNo)),
+        se = list(paginator.page(pageNo))
+        for inf in se:
+            inf['add_time']=inf['add_time'].strftime("%Y-%m-%d %H:%M")
+            inf['description']=inf['description'][:25]
+        context = {'result':{'data':se,
                              'pageSize':pageSize,
                              'pageNo':pageNo,
                              'totalCount':services.count(),
@@ -634,7 +647,7 @@ def service_info(request, service_id):
     try:
         service = Service_info.objects.get(id=service_id)
         res = model_to_dict(service)
-        res['create_time'] = service.create_time.strftime("%Y-%m-%d %H:%M")
+        res['add_time'] = service.add_time.strftime("%Y-%m-%d %H:%M")
         res['recent_modified_time'] = service.recent_modified_time.strftime("%Y-%m-%d %H:%M")
     except:
         res = {"errmsg":"读取测试信息失败，可能您输入的测试文件已被删除"}

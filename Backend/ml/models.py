@@ -10,7 +10,7 @@ class Model_info(models.Model):
     output = models.JSONField(blank=True,null=True)
     algorithm = models.CharField(blank=True,null=True,max_length=50)
     engine = models.CharField(blank=True,null=True,max_length=50)
-    addTime = models.DateTimeField(auto_now_add=True)
+    add_time = models.DateTimeField(auto_now_add=True)
 
 # 一个model->多个service
 class Service_info(models.Model):
@@ -18,7 +18,7 @@ class Service_info(models.Model):
     description = models.TextField(max_length=300,blank=True,default='')
     mod = models.ForeignKey(to=Model_info, on_delete=models.CASCADE, null=True,related_name='model') # 对应的模型
 
-    create_time = models.DateTimeField(auto_now_add=True)
+    add_time = models.DateTimeField(auto_now_add=True)
     recent_modified_time = models.DateTimeField(auto_now=True)
     status = models.CharField(blank=True,default='deployed',max_length=20) #deployed,paused,undeployed
     # 调用次数，平均使用时间，mod
@@ -32,7 +32,7 @@ class Service_info(models.Model):
 class Test_info(models.Model):
     tested_file = models.FileField(upload_to='test_files_info',null=True,blank=True)
     # 备注信息
-    description = models.CharField(max_length=100,default= 'default')
+    description = models.TextField(max_length=100,default= 'default')
 
     thread_ID = models.IntegerField(default=-1)
     is_finished = models.BooleanField(blank=True,null=True,default=False)
@@ -41,7 +41,7 @@ class Test_info(models.Model):
     add_time = models.DateTimeField(auto_now_add=True)
     recent_modified_time = models.DateTimeField(auto_now=True)
     # endtime如果没完成的话隐藏显示
-    endtime = models.DateTimeField(auto_now=True)
+    end_time = models.DateTimeField(auto_now=True)
 
     # 对应model和service的外键
     mod = models.ForeignKey(to=Model_info, on_delete=models.CASCADE, null=True) 

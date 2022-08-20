@@ -1,126 +1,173 @@
 <template>
-  <page-header-wrapper title="Sample Service" :content="$t('model_test_guideline')">
+  <page-header-wrapper :title="serviceName" :content="$t('model_test_guideline')">
     <!-- 选择菜单：部署概述/测试 -->
     <a-menu mode="horizontal">
       <a-menu-item @click="showPage('info')">Service infomation</a-menu-item>
       <a-menu-item @click="showPage('test')">Fast test</a-menu-item>
       <a-menu-item @click="showPage('task')">Task</a-menu-item>
+      <a-menu-item @click="showPage('list')">List</a-menu-item>
     </a-menu>
     <!-- 部署概述 -->
-    <template v-if="page=='info'">
-      <!-- 基本信息 -->
-      <a-card :bordered="false" title="Indicators">
-        <a-button @click.stop="deploy" v-if="serviceStatus!='deployed'">Deploy</a-button>
-        <a-button @click.stop="undeploy" v-if="serviceStatus!='undeployed'">Undeploy</a-button>
-        <a-button @click.stop="pause" v-if="serviceStatus!='pause'">Pause</a-button>
-        <a-table :columns="funcColumns" :data-source="funcData">
-        </a-table>
-      </a-card>
-      <!-- TODO -->
-      <!-- <a-card :bordered="false" title="Copy" style="margin-top: 20px">
-        <a-table :columns="copyColumns" :data-source="copyData">
-        </a-table>
-      </a-card> -->
-    </template>
-    <!-- 部署测试 -->
-    <template v-if="page=='test'">
-      <a-row type="flex" :gutter="16">
-        <a-col :span="12">
-          <a-card title="Input" :bordered="false" v-if="isJSON">
-            <template #extra><a @click.stop="toJSON">Form</a></template>
-            <a-textarea
-              rows="6"
-              v-model="jsonStr"
-            />
-            <!-- <a-button @click.prevent="reset">Clear</a-button> -->
-            <a-button type="primary" @click="submitJSON" style="margin-left: 16px">Submit</a-button>
-            <a-button type="primary" @click="jsonCurl" style="margin-left: 16px">Curlcode</a-button>
-          </a-card>
-          <a-card title="Input" :bordered="false" v-else>
-            <template #extra><a @click.stop="toJSON">JSON</a></template>
-            <a-form @submit="testFormSubmit" :form="form">
-              <a-form-item v-for="(data, index) in inputData" :key="index" :label="data.name+' (Type:'+data.type+')'">
-                <a-switch
-                  :check="isFile[data.name]"
-                  :v-model="isFile[data.name]"
-                  checkedChildren="File"
-                  unCheckedChildren="Text"
-                  @change="chooseForT(data.name)"/>
-                <a-form-item v-if="isFile[data.name]">
+    <a-spin :spinning="spinning">
+      <template v-if="page=='info'">
+        <!-- 基本信息 -->
+        <a-card :bordered="false" title="Indicators">
+          <a-button @click="deploy" v-if="serviceStatus!='deployed'">Deploy</a-button>
+          <a-button @click="undeploy" v-if="serviceStatus!='undeployed'">Undeploy</a-button>
+          <a-button @click="pause" v-if="serviceStatus!='pause'">Pause</a-button>
+          <template #extra><a :href='"/model/model-test?id="+model_id'>Model</a></template>
+          <br/>
+          <a :href='"http://127.0.0.1:8001/ml/deploy/"+deploy_id'>127.0.0.1:8001/ml/deploy/{{deploy_id}}</a>
+          <a-table :columns="funcColumns" :data-source="funcData">
+          </a-table>
+          <a-descriptions title="Description" v-if="serviceDescription !== ''" :value="serviceDescription">
+            <a-descriptions-item>{{ serviceDescription }}</a-descriptions-item>
+          </a-descriptions>
+        </a-card>
+        <!-- TODO -->
+        <!-- <a-card :bordered="false" title="Copy" style="margin-top: 20px">
+          <a-table :columns="copyColumns" :data-source="copyData">
+          </a-table>
+        </a-card> -->
+      </template>
+      <!-- 部署测试 -->
+      <template v-if="page=='test'">
+        <a-row type="flex" :gutter="16">
+          <a-col :span="12">
+            <a-card title="Input" :bordered="false" v-if="isJSON">
+              <template #extra><a @click.stop="toJSON">Form</a></template>
+              <a-textarea
+                rows="6"
+                v-model="jsonStr"
+              />
+              <!-- <a-button @click.prevent="reset">Clear</a-button> -->
+              <a-button type="primary" @click="submitJSON" style="margin-left: 16px">Submit</a-button>
+              <a-button type="primary" @click="jsonCurl" style="margin-left: 16px">Curlcode</a-button>
+            </a-card>
+            <a-card title="Input" :bordered="false" v-else>
+              <template #extra><a @click.stop="toJSON">JSON</a></template>
+              <a-form @submit="testFormSubmit" :form="form">
+                <a-form-item v-for="(data, index) in inputData" :key="index" :label="data.name+' (Type:'+data.type+')'">
+                  <a-switch
+                    :check="isFile[data.name]"
+                    :v-model="isFile[data.name]"
+                    checkedChildren="File"
+                    unCheckedChildren="Text"
+                    @change="chooseForT(data.name)"/>
+                  <a-form-item v-if="isFile[data.name]">
+                    <a-upload
+                      :before-upload="testBeforeUpload"
+                      :multiplt="false"
+                      :max-count="1"
+                      :name="data.name"
+                      v-decorator="[data.name, { rules: [{required: true, message: 'Please give input'}]}]"
+                    >
+                      <a-button> <a-icon type="upload" /> Select File </a-button>
+                    </a-upload>
+                  </a-form-item>
+                  <a-form-item v-else>
+                    <a-textarea
+                      rows="2"
+                      v-decorator="[data.name, { rules: [{required: true, message: 'Please give input'}]}]"
+                    />
+                  </a-form-item>
+                  <!-- <a-textarea
+                    rows="2"
+                    v-decorator="[data.name, { rules: [{required: true, message: 'Please give input'}]}]"
+                    v-else
+                  /> -->
+                </a-form-item>
+                <a-form-item :wrapper-col="{ span: 14, offset: 15 }">
+                  <!-- <a-button @click.prevent="reset">Clear</a-button> -->
+                  <a-button type="primary" htmlType="submit" style="margin-left: 16px">Submit</a-button>
+                  <a-button type="primary" @click="formCurl" style="margin-left: 16px">Curlcode</a-button>
+                </a-form-item>
+              </a-form>
+
+            </a-card>
+          </a-col>
+          <a-col :span="12">
+            <a-card title="Output" :bordered="false">
+              <textarea row="6" style="border: none" :value="testRes">
+              </textarea>
+            </a-card>
+          </a-col>
+        </a-row>
+      </template>
+      <template v-if="page=='task'">
+        <a-row type="flex" :gutter="16">
+          <a-col :span="12">
+            <a-card title="Input" :bordered="false">
+              <a-form @submit="taskFormSubmit" :form="form">
+                <a-form-item label="File">
                   <a-upload
                     :before-upload="testBeforeUpload"
                     :multiplt="false"
                     :max-count="1"
-                    :name="data.name"
-                    v-decorator="[data.name, { rules: [{required: true, message: 'Please give input'}]}]"
+                    v-decorator="['file', { rules: [{required: true, message: 'Please give input'}]}]"
                   >
                     <a-button> <a-icon type="upload" /> Select File </a-button>
                   </a-upload>
                 </a-form-item>
-                <a-form-item v-else>
+                <a-form-item
+                  label="Description"
+                  :labelCol="{ lg: { span: 7 }, sm: { span: 7 } }"
+                  :wrapperCol="{ lg: { span: 10 }, sm: { span: 17 } }">
                   <a-textarea
-                    rows="2"
-                    v-decorator="[data.name, { rules: [{required: true, message: 'Please give input'}]}]"
-                  />
+                    rows="4"
+                    v-decorator="[
+                      'description',
+                      {
+                        rules: [{ required: false }],
+                        initialValue: ''
+                      }
+                    ]" />
                 </a-form-item>
-                <!-- <a-textarea
-                  rows="2"
-                  v-decorator="[data.name, { rules: [{required: true, message: 'Please give input'}]}]"
-                  v-else
-                /> -->
-              </a-form-item>
-              <a-form-item :wrapper-col="{ span: 14, offset: 15 }">
-                <!-- <a-button @click.prevent="reset">Clear</a-button> -->
-                <a-button type="primary" htmlType="submit" style="margin-left: 16px">Submit</a-button>
-                <a-button type="primary" @click="formCurl" style="margin-left: 16px">Curlcode</a-button>
-              </a-form-item>
-            </a-form>
-
-          </a-card>
-        </a-col>
-        <a-col :span="12">
-          <a-card title="Output" :bordered="false">
-            <textarea style="border: none" :value="testRes">
-            </textarea>
-          </a-card>
-        </a-col>
-      </a-row>
-    </template>
-    <template v-if="page=='task'">
+                <a-form-item :wrapper-col="{ span: 14, offset: 15 }">
+                  <!-- <a-button @click.prevent="reset">Clear</a-button> -->
+                  <a-button type="primary" htmlType="submit" style="margin-left: 16px">Submit</a-button>
+                </a-form-item>
+              </a-form>
+            </a-card>
+          </a-col>
+          <a-col :span="12">
+          </a-col>
+        </a-row>
+      </template>
+      <template v-if="page=='list'">
       <a-row type="flex" :gutter="16">
-        <a-col :span="12">
-          <a-card title="Input" :bordered="false">
-            <a-form @submit="taskFormSubmit" :form="form">
-              <a-form-item>
-                <a-upload
-                  :before-upload="testBeforeUpload"
-                  :multiplt="false"
-                  :max-count="1"
-                  v-decorator="['file', { rules: [{required: true, message: 'Please give input'}]}]"
-                >
-                  <a-button> <a-icon type="upload" /> Select File </a-button>
-                </a-upload>
-              </a-form-item>
-              <a-form-item :wrapper-col="{ span: 14, offset: 15 }">
-                <!-- <a-button @click.prevent="reset">Clear</a-button> -->
-                <a-button type="primary" htmlType="submit" style="margin-left: 16px">Submit</a-button>
-              </a-form-item>
-            </a-form>
-          </a-card>
-        </a-col>
-        <a-col :span="12">
-          <a-card title="Output" :bordered="false">
-            <textarea style="border: none" :value="testRes">
-            </textarea>
-          </a-card>
-        </a-col>
-      </a-row>
-    </template>
+          <s-table
+            ref="table"
+            size="default"
+            :columns="columns"
+            :data="loadData"
+            :alert="{ show: true, clear: true }"
+            :rowSelection="{ selectedRowKeys: this.selectedRowKeys }"
+            :rowKey="record => record.id"
+          >
+            <template v-for="(col, index) in columns" v-if="col.scopedSlots" :slot="col.dataIndex" slot-scope="text">
+              <div :key="index">
+                <template>{{ text }}</template>
+              </div>
+            </template>
+            <template slot="action" slot-scope="text, record">
+              <div class="editable-row-operations">
+                <span>
+                  <a class="edit" @click="() => detail(record)">Detail</a>
+                </span>
+              </div>
+            </template>
+          </s-table>
+
+        </a-row>
+      </template>
+    </a-spin>
   </page-header-wrapper>
 </template>
 
 <script>
 import axios from 'axios'
+import { STable } from '@/components'
 // 输入变量表格Column
 const funcColumns = [
   {
@@ -130,8 +177,8 @@ const funcColumns = [
   },
   {
     title: 'Create Time',
-    dataIndex: 'create_time',
-    key: 'create_time'
+    dataIndex: 'add_time',
+    key: 'add_time'
   },
   {
     title: 'Average(s)',
@@ -143,16 +190,16 @@ const funcColumns = [
   //   key: 'medResTime',
   //   dataIndex: 'medResTime'
   // },
-  //   {
-  //   title: 'Min(ms)',
-  //   key: 'minResTime',
-  //   dataIndex: 'minResTime'
-  // },
-  //   {
-  //   title: 'Max(ms)',
-  //   key: 'maxResTime',
-  //   dataIndex: 'maxResTime'
-  // },
+    {
+    title: 'Min(s)',
+    key: 'minResTime',
+    dataIndex: 'min_use_time'
+  },
+    {
+    title: 'Max(s)',
+    key: 'maxResTime',
+    dataIndex: 'max_use_time'
+  },
     {
     title: 'Invoke Times',
     key: 'use_times',
@@ -192,6 +239,9 @@ const copyColumns = [
 ]
 export default {
   name: 'ModelTest',
+  components: {
+    STable
+  },
   data () {
     return {
       deploy_id: this.$route.query.id,
@@ -212,7 +262,60 @@ export default {
       form: this.$form.createForm(this),
       testRes: 'Here is result!',
 
-      curlStr: ''
+      curlStr: '',
+      spinning: false,
+
+      columns: [
+        {
+          title: 'Test number',
+          dataIndex: 'id',
+          key: 'id'
+        },
+        {
+          title: 'Description',
+          dataIndex: 'description'
+        },
+        {
+          title: 'Status',
+          dataIndex: 'status',
+          key: 'status'
+        },
+        {
+          title: 'Added time',
+          dataIndex: 'add_time'
+        },
+        {
+          title: 'Recent modified time',
+          dataIndex: 'recent_modified_time'
+        },
+        {
+          title: 'Operation',
+          table: 'Operation',
+          dataIndex: 'action',
+          scopedSlots: { customRender: 'action' }
+        }
+      ],
+      // 加载数据方法 必须为 Promise 对象
+      loadData: parameter => {
+        return axios.get('/ml/test', {
+          params: Object.assign(parameter, { 'service': this.deploy_id })
+        }).then(res => {
+            console.log(this.queryParam)
+            console.log(parameter)
+            console.log(res.data.result)
+            return res.data.result
+            }).catch(err => {
+            console.log(err)
+            try {
+              this.$message.error(err.response.data.errmsg)
+            } catch (err) {
+              this.$message.error('read failed.')
+              }
+      })
+      },
+
+      selectedRowKeys: [],
+      selectedRows: []
     }
   },
   beforeMount () {
@@ -220,20 +323,26 @@ export default {
   },
   methods: {
     getInfo () {
+      this.spinning = true
       axios.get(`/ml/deploy/${this.deploy_id}`)
           .then(res => {
-            this.funcData.push(res.data)
+            this.spinning = false
+            this.funcData = [res.data]
             this.model_id = res.data.mod
             console.log(this.funcData)
-            if (res.data.description !== 'undefined') {
-              this.serviceDescription = res.data.description
+            if (this.funcData[0]['use_times'] === 0) {
+              this.funcData[0]['min_use_time'] = 0
             }
+            this.serviceDescription = res.data.description
+            this.serviceStatus = res.data.status
+            this.serviceName = res.data.name
             this.getModelInfo()
             }).catch(err => {
+            this.spinning = false
             console.log(err)
-            if ('errmsg' in err.response.data) {
+            try {
               this.$message.error(err.response.data.errmsg)
-            } else {
+            } catch (err) {
               this.$message.error('read failed.')
               }
           })
@@ -241,6 +350,7 @@ export default {
     showPage (key) {
       this.page = key
       console.log('page:', this.page)
+      this.getInfo()
     },
     chooseForT (checked) {
       this.isFile[checked] = !this.isFile[checked]
@@ -281,9 +391,9 @@ export default {
             this.jsonStr = JSON.stringify(jsonJson)
             }).catch(err => {
             console.log(err)
-            if ('errmsg' in err.response.data) {
+            try {
               this.$message.error(err.response.data.errmsg)
-            } else {
+            } catch (err) {
               this.$message.error('read failed.')
               }
           })
@@ -297,6 +407,7 @@ export default {
       console.log(this.form)
       this.form.validateFields((err, values) => {
         if (!err) {
+          this.spinning = true
           var formData = new FormData()
           console.log(values)
           for (var v in values) {
@@ -314,13 +425,15 @@ export default {
             processData: false,
             data: formData
             }).then(res => {
+                this.spinning = false
                 this.$message.success('upload successfully.')
                 this.testRes = JSON.stringify(res.data)
               }).catch(err => {
               console.log(err)
-              if ('errmsg' in err.response.data) {
+              this.spinning = false
+              try {
                 this.$message.error(err.response.data.errmsg)
-              } else {
+              } catch (err) {
                 this.$message.error('upload failed.')
                 }
             })
@@ -336,6 +449,7 @@ export default {
         return
       }
       console.log(jsonJson)
+      this.spinning = true
       const formData = new FormData()
       Object.keys(jsonJson).forEach((key) => {
       formData.append(key, jsonJson[key])
@@ -344,18 +458,17 @@ export default {
             url: `/ml/deploy/${this.deploy_id}`,
             method: 'post',
             processData: false,
-            headers: {
-               'Content-Type': 'application/x-www-form-urlencoded'
-            },
             data: formData
             }).then(res => {
+                this.spinning = false
                 this.$message.success('upload successfully.')
                 this.testRes = JSON.stringify(res.data)
               }).catch(err => {
+              this.spinning = false
               console.log(err)
-              if ('errmsg' in err.response.data) {
+              try {
                 this.$message.error(err.response.data.errmsg)
-              } else {
+              } catch (err) {
                 this.$message.error('upload failed.')
                 }
             })
@@ -363,14 +476,13 @@ export default {
     pause () {
       const thi = this
       this.$confirm({
-        title: '警告',
-        content: `真的要暂停吗?`,
-        okText: '暂停',
+        title: 'Warning',
+        content: `Pasue?`,
         okType: 'danger',
-        cancelText: '取消',
         onOk () {
           const formData = new FormData()
           formData.append('status', 'paused')
+          this.spinning = true
           axios({
             url: `/ml/deploy/${this.deploy_id}`,
             method: 'put',
@@ -380,7 +492,9 @@ export default {
             },
             data: formData
             }).then(res => {
+                this.spinning = false
                 thi.$message.success('pause successfully.')
+                this.$route.go(0)
               }).catch(err => {
               console.log(err)
               if ('errmsg' in err.response.data) {
@@ -396,12 +510,11 @@ export default {
     deploy () {
       const thi = this
       this.$confirm({
-        title: '警告',
-        content: `真的要暂停吗?`,
-        okText: '暂停',
+        title: 'Warning',
+        content: `Deploy?`,
         okType: 'danger',
-        cancelText: '取消',
         onOk () {
+          this.spinning = true
           const formData = new FormData()
           formData.append('status', 'deployed')
           axios({
@@ -413,14 +526,16 @@ export default {
             },
             data: formData
             }).then(res => {
-                thi.$message.success('pause successfully.')
+                this.spinning = false
+                thi.$message.success('Depoly successfully.')
+                this.$router.go(0)
               }).catch(err => {
               console.log(err)
-              if ('errmsg' in err.response.data) {
+              try {
                 thi.$message.error(err.response.data.errmsg)
                 this.$router.go(0)
-              } else {
-                thi.$message.error('pause failed.')
+              } catch (err) {
+                thi.$message.error('Depoly failed.')
                 }
             })
         }
@@ -429,12 +544,11 @@ export default {
     undeploy () {
       const thi = this
       this.$confirm({
-        title: '警告',
-        content: `真的要暂停吗?`,
-        okText: '暂停',
+        title: 'Warning',
+        content: `Undeploy?`,
         okType: 'danger',
-        cancelText: '取消',
         onOk () {
+          this.spinning = true
           const formData = new FormData()
           formData.append('status', 'undeployed')
           axios({
@@ -446,14 +560,17 @@ export default {
             },
             data: formData
             }).then(res => {
-                thi.$message.success('pause successfully.')
+                this.spinning = false
+                thi.$message.success('Undeploy successfully.')
+                this.$router.go(0)
               }).catch(err => {
               console.log(err)
-              if ('errmsg' in err.response.data) {
+              try {
+                this.spinning = false
                 thi.$message.error(err.response.data.errmsg)
                 this.$router.go(0)
-              } else {
-                thi.$message.error('pause failed.')
+              } catch (err) {
+                thi.$message.error('Undeploy failed.')
                 }
             })
         }
@@ -509,6 +626,7 @@ export default {
       console.log(this.form)
       this.form.validateFields((err, values) => {
         if (!err) {
+          this.spinning = true
           var formData = new FormData()
           console.log(values)
           for (var v in values) {
@@ -519,7 +637,7 @@ export default {
             formData.append(v, values[v])
            }
           }
-          formData.append('service', this.deploy_id)
+          formData.append('service_id', this.deploy_id)
           console.log(values) // TODO: waiting anime
           axios({
             url: `/ml/test`,
@@ -527,14 +645,23 @@ export default {
             processData: false,
             data: formData
             }).then(res => {
+                this.spinning = false
                 this.$message.success('upload successfully.')
-                this.testRes = res.data.service_id
+                this.$info({
+                  title: 'Task ID',
+                  content: 'Task ID:' + res.data.task_id.toString(),
+                  onOk () {
+                    this.$router.push({ path: '/test/test-detail', query: { id: res.data.task_id } })
+                  },
+                  onCancel () {}
+                })
               }).catch(err => {
+              this.spinning = false
               console.log(err)
-              if ('errmsg' in err.response.data) {
+              try {
                 this.$message.error(err.response.data.errmsg)
-              } else {
-                this.$message.error('upload failed.')
+              } catch (err) {
+                this.$message.error('Failed.')
                 }
             })
         }

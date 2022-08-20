@@ -60,10 +60,10 @@
           </template> -->
             <a-col :md="!advanced && 8 || 24" :sm="24">
               <span class="table-page-search-submitButtons" :style="advanced && { float: 'right', overflow: 'hidden' } || {} ">
-                <a-button type="primary" @click="filter">查询</a-button>
-                <a-button style="margin-left: 8px" @click="resetForm">重置</a-button>
+                <a-button type="primary" @click="filter">Query</a-button>
+                <a-button style="margin-left: 8px" @click="resetForm">Reset</a-button>
                 <a @click="toggleAdvanced" style="margin-left: 8px">
-                  {{ advanced ? '收起' : '展开' }}
+                  {{ advanced ? 'Up' : 'Down' }}
                   <a-icon :type="advanced ? 'up' : 'down'"/>
                 </a>
               </span>
@@ -77,21 +77,21 @@
           <template #overlay>
             <a-menu>
               <a-menu-item @click="deploys">
-                批量部署
+                Deploy
               </a-menu-item>
               <a-menu-item @click="pauses">
-                批量暂停
+                Pause
               </a-menu-item>
               <a-menu-item @click="stops">
-                批量停止
+                Stop
               </a-menu-item>
               <a-menu-item @click="dels">
-                批量删除
+                Delete
               </a-menu-item>
             </a-menu>
           </template>
           <a-button>
-            批量操作
+            Do
             <DownOutlined />
           </a-button>
         </a-dropdown>
@@ -106,30 +106,24 @@
         :rowSelection="{ selectedRowKeys: this.selectedRowKeys, onChange: this.onSelectChange }"
         :rowKey="record => record.id"
       >
-        <template v-for="(col, index) in columns" v-if="col.scopedSlots" :slot="col.dataIndex" slot-scope="text, record">
+        <template v-for="(col, index) in columns" v-if="col.scopedSlots" :slot="col.dataIndex" slot-scope="text">
           <div :key="index">
-            <a-input
-              v-if="record.editable"
-              style="margin: -5px 0"
-              :value="text"
-              @change="e => handleChange(e.target.value, record.key, col, record)"
-            />
-            <template v-else>{{ text }}</template>
+            <template>{{ text }}</template>
           </div>
         </template>
 
         <template slot="action" slot-scope="text, record">
           <div class="editable-row-operations">
             <span>
-              <a class="edit" @click="() => detail(record)">详情</a>
+              <a class="edit" @click="() => detail(record)">Detail</a>
               <a-divider type="vertical" v-if="record.status!='deployed'"/>
-              <a class="delete" @click="() => deploy(record)" v-if="record.status!='deployed'">部署</a>
+              <a class="delete" @click="() => deploy(record)" v-if="record.status!='deployed'">Deploy</a>
               <a-divider type="vertical" v-if="record.status!='paused'"/>
-              <a class="delete" @click="() => pause(record)" v-if="record.status!='paused'">暂停</a>
+              <a class="delete" @click="() => pause(record)" v-if="record.status!='paused'">Pause</a>
               <a-divider type="vertical" v-if="record.status!='undeployed'"/>
-              <a class="delete" @click="() => stop(record)" v-if="record.status!='undeployed'">停止</a>
+              <a class="delete" @click="() => stop(record)" v-if="record.status!='undeployed'">Undeployed</a>
               <a-divider type="vertical" />
-              <a class="delete" @click="() => del(record)">删除</a>
+              <a class="delete" @click="() => del(record)">Del</a>
             </span>
           </div>
         </template>
@@ -170,19 +164,19 @@ export default {
           dataIndex: 'name',
           key: 'name'
         },
-        // {
-        //   title: 'Description',
-        //   dataIndex: 'description'
-        // },
+        {
+          title: 'Description',
+          dataIndex: 'description'
+        },
         {
           title: 'Status',
           dataIndex: 'status',
           key: 'status'
         },
-        // {
-        //   title: 'Added time',
-        //   dataIndex: 'time'
-        // },
+        {
+          title: 'Added time',
+          dataIndex: 'add_time'
+        },
         // {
         //   title: 'Type',
         //   dataIndex: 'model_type'
@@ -215,9 +209,9 @@ export default {
             return res.data.result
             }).catch(err => {
             console.log(err)
-            if ('errmsg' in err.response.data) {
+            try {
               this.$message.error(err.response.data.errmsg)
-            } else {
+            } catch (err) {
               this.$message.error('read failed.')
               }
       })
@@ -235,23 +229,20 @@ export default {
     detail (row) {
       console.log(row.id)
       this.$router.push({ path: '/deploy/deploy-test', query: { id: row.id } })
-      // row = Object.assign({}, row)
     },
     del (row) {
       const thi = this
       this.$confirm({
-        title: '警告',
-        content: `真的要删除 ${row.name} 吗?`,
-        okText: '删除',
+        title: 'Warining',
+        content: `Delete ${row.name}?`,
         okType: 'danger',
-        cancelText: '取消',
         onOk () {
           axios({
             url: `/ml/deploy/${row.id}`,
             method: 'delete',
             processData: false
             }).then(res => {
-                thi.$message.success('delete successfully.')
+                thi.$message.success('Delete successfully.')
                 thi.resetForm()
                 thi.$refs.table.refresh(true)
               }).catch(err => {
@@ -259,7 +250,7 @@ export default {
               if ('errmsg' in err.response.data) {
                 thi.$message.error(err.response.data.errmsg)
               } else {
-                thi.$message.error('delete failed.')
+                thi.$message.error('Delete failed.')
                 }
             })
         }
@@ -268,11 +259,9 @@ export default {
     dels () {
       const thi = this
       this.$confirm({
-        title: '警告',
-        content: `真的要删除这些吗?`,
-        okText: '删除',
+        title: 'Warning',
+        content: `Delete these?`,
         okType: 'danger',
-        cancelText: '取消',
         async onOk () {
           console.log(thi.selectedRows)
           for (var i = 0; i < thi.selectedRows.length; i++) {
@@ -282,10 +271,10 @@ export default {
             processData: false
             }).catch(err => {
               console.log(err)
-              if ('errmsg' in err.response.data) {
+              try {
                 thi.$message.error(err.response.data.errmsg)
-              } else {
-                thi.$message.error('delete failed.')
+              } catch (err) {
+                thi.$message.error('Delete failed.')
                 }
             })
           }
@@ -298,11 +287,9 @@ export default {
     pause (row) {
       const thi = this
       this.$confirm({
-        title: '警告',
-        content: `真的要暂停 ${row.name} 吗?`,
-        okText: '暂停',
+        title: 'Warning',
+        content: `Pause ${row.name}?`,
         okType: 'danger',
-        cancelText: '取消',
         onOk () {
           const formData = new FormData()
           formData.append('status', 'paused')
@@ -320,9 +307,9 @@ export default {
                 thi.$refs.table.refresh(true)
               }).catch(err => {
               console.log(err)
-              if ('errmsg' in err.response.data) {
+              try {
                 thi.$message.error(err.response.data.errmsg)
-              } else {
+              } catch (err) {
                 thi.$message.error('pause failed.')
                 }
             })
@@ -332,11 +319,9 @@ export default {
     pauses () {
       const thi = this
       this.$confirm({
-        title: '警告',
-        content: `真的要暂停这些吗?`,
-        okText: '暂停',
+        title: 'Warning',
+        content: `Pause these?`,
         okType: 'danger',
-        cancelText: '取消',
         async onOk () {
           const formData = new FormData()
           formData.append('status', 'paused')
@@ -352,27 +337,23 @@ export default {
             data: formData
             }).catch(err => {
               console.log(err)
-              if ('errmsg' in err.response.data) {
+              try {
                 thi.$message.error(err.response.data.errmsg)
-              } else {
-                thi.$message.error('delete failed.')
+              } catch (err) {
+                thi.$message.error('Pause failed.')
                 }
             })
           }
-          thi.resetForm()
-          thi.selectedRows = []
-          thi.$refs.table.refresh(true)
+          thi.$router.go(0)
         }
       })
     },
     deploy (row) {
       const thi = this
       this.$confirm({
-        title: '警告',
-        content: `真的要部署 ${row.name} 吗?`,
-        okText: '部署',
+        title: 'Warning',
+        content: `Deploy ${row.name}?`,
         okType: 'danger',
-        cancelText: '取消',
         onOk () {
           const formData = new FormData()
           formData.append('status', 'deployed')
@@ -385,14 +366,14 @@ export default {
             },
             data: formData
             }).then(res => {
-                thi.$message.success('deploy successfully.')
+                thi.$message.success('Deploy successfully.')
                 thi.resetForm()
                 thi.$refs.table.refresh(true)
               }).catch(err => {
               console.log(err)
-              if ('errmsg' in err.response.data) {
+              try {
                 thi.$message.error(err.response.data.errmsg)
-              } else {
+              } catch (err) {
                 thi.$message.error('deploy failed.')
                 }
             })
@@ -402,11 +383,9 @@ export default {
     deploys () {
       const thi = this
       this.$confirm({
-        title: '警告',
-        content: `真的要部署这些吗?`,
-        okText: '部署',
+        title: 'Warning',
+        content: `Deploy these?`,
         okType: 'danger',
-        cancelText: '取消',
         async onOk () {
           const formData = new FormData()
           formData.append('status', 'deployed')
@@ -422,27 +401,23 @@ export default {
             data: formData
             }).catch(err => {
               console.log(err)
-              if ('errmsg' in err.response.data) {
+              try {
                 thi.$message.error(err.response.data.errmsg)
-              } else {
+              } catch (err) {
                 thi.$message.error('deploy failed.')
                 }
             })
           }
-          thi.resetForm()
-          thi.selectedRows = []
-          thi.$refs.table.refresh(true)
+          thi.$router.go(0)
         }
       })
     },
     stop (row) {
       const thi = this
       this.$confirm({
-        title: '警告',
-        content: `真的要停止 ${row.name} 吗?`,
-        okText: '停止',
+        title: 'Warning',
+        content: `Stop ${row.name}?`,
         okType: 'danger',
-        cancelText: '取消',
         onOk () {
           const formData = new FormData()
           formData.append('status', 'undeployed')
@@ -455,14 +430,14 @@ export default {
             },
             data: formData
             }).then(res => {
-                thi.$message.success('undeploy successfully.')
+                thi.$message.success('Undeploy successfully.')
                 thi.resetForm()
                 thi.$refs.table.refresh(true)
               }).catch(err => {
               console.log(err)
-              if ('errmsg' in err.response.data) {
+              try {
                 thi.$message.error(err.response.data.errmsg)
-              } else {
+              } catch (err) {
                 thi.$message.error('undeploy failed.')
                 }
             })
@@ -472,14 +447,12 @@ export default {
     stops () {
       const thi = this
       this.$confirm({
-        title: '警告',
-        content: `真的要部署这些吗?`,
-        okText: '部署',
+        title: 'Warning',
+        content: `Stop these?`,
         okType: 'danger',
-        cancelText: '取消',
         async onOk () {
           const formData = new FormData()
-          formData.append('status', 'paused')
+          formData.append('status', 'undeployed')
           console.log(thi.selectedRows)
           for (var i = 0; i < thi.selectedRows.length; i++) {
           await axios({
@@ -492,16 +465,14 @@ export default {
             data: formData
             }).catch(err => {
               console.log(err)
-              if ('errmsg' in err.response.data) {
+              try {
                 thi.$message.error(err.response.data.errmsg)
-              } else {
-                thi.$message.error('undeploy failed.')
+              } catch (err) {
+                thi.$message.error('Undeploy failed.')
                 }
             })
           }
-          thi.resetForm()
-          thi.selectedRows = []
-          thi.$refs.table.refresh(true)
+          thi.$router.go(0)
         }
       })
     },

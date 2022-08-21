@@ -500,7 +500,7 @@ def test_all(request):
     try:
         pageNo = int(request.GET.get('pageNo',1))
         pageSize = int(request.GET.get('pageSize',10))
-        description = request.GET.get('description','')
+        description = request.GET.get('name','')
         is_finished = request.GET.get('is_finished',0)
 
         if is_finished != '':

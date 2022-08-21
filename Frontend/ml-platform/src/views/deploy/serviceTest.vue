@@ -18,7 +18,7 @@
           <a-button @click="pause" v-if="serviceStatus!='pause'">Pause</a-button>
           <template #extra><a :href="&quot;/model/model-test?id=&quot;+model_id">Model</a></template>
           <br/>
-          <a :href="&quot;http://127.0.0.1:8001/ml/deploy/&quot;+deploy_id">127.0.0.1:8001/ml/deploy/{{ deploy_id }}</a>
+          <a :href="&quot;http://&quot;+baseUrl+&quot;/ml/deploy/&quot;+deploy_id">{{baseUrl}}/ml/deploy/{{ deploy_id }}</a>
           <a-table :columns="funcColumns" :data-source="funcData">
           </a-table>
           <a-descriptions title="Description" v-if="serviceDescription !== ''" :value="serviceDescription">
@@ -413,6 +413,11 @@ export default {
     this.getInfo()
   },
   methods: {
+    detail (row) {
+      console.log(row.id)
+      this.$router.push({ path: '/test/test-detail', query: { id: row.id } })
+      // row = Object.assign({}, row)
+    },
     getInfo () {
       this.spinning = true
       axios.get(`/ml/deploy/${this.deploy_id}`)
@@ -554,7 +559,7 @@ export default {
             }
           })
           var formData = this.toFormData(values)
-          console.log(values) // TODO: waiting anime
+          console.log(values)
           axios({
             url: `/ml/deploy/${this.deploy_id}`,
             method: 'post',
@@ -777,7 +782,7 @@ export default {
            }
           }
           formData.append('service_id', this.deploy_id)
-          console.log(values) // TODO: waiting anime
+          console.log(values)
           axios({
             url: `/ml/test`,
             method: 'post',

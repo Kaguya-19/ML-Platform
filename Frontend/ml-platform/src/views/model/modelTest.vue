@@ -136,7 +136,6 @@
                   v-for="(data, index) in inputData"
                   :key="index"
                   :label="data.name + ' (Type:' + data.type + ')'">
-                  <!-- todo:upload -->
                   <a-switch
                     :check="isFile[data.name]"
                     :v-model="isFile[data.name]"
@@ -177,7 +176,6 @@
       </template>
       <!-- tasks -->
       <template v-if="page=='tasks'">
-        <!-- todo -->
         <a-button @click.stop="deploy">Deploy</a-button>
         <a-row type="flex" :gutter="16">
           <s-table
@@ -509,9 +507,9 @@ export default {
           })
           console.log(values)
           var formData = this.toFormData(values)
-          console.log(`formData`, formData) // TODO: waiting anime
+          console.log(`formData`, formData)
           axios({
-            url: `/ml/model/${this.model_id}`, // TODO
+            url: `/ml/model/${this.model_id}`,
             method: 'post',
             processData: false,
             headers: {
@@ -545,7 +543,7 @@ export default {
       this.spinning = true
       const formData = this.toFormData(jsonJson)
       axios({
-        url: `/ml/model/${this.model_id}`, // TODO
+        url: `/ml/model/${this.model_id}`,
         method: 'post',
         processData: false,
         headers: {

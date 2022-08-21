@@ -3,7 +3,6 @@ import threading
 from threading import local
 from tkinter.filedialog import test
 from turtle import Turtle
-
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.forms.models import model_to_dict
@@ -17,6 +16,8 @@ from .filters import textFilter
 from .pre_process_example import defualt_process
 BASE_URL = '127.0.0.1:8000'
 import socket
+import traceback
+
 
 preprocess_data=local() 
 
@@ -305,7 +306,6 @@ def fast_test(request,id,type='model'):
         print("x_test", x_test.shape)
         return quick_predict(model_path,type = model_type,x_test = x_test)
     except Exception as e:
-        import traceback
         return {"stderr":traceback.format_exc()}
 
 def test_add(request,model_id):
@@ -346,6 +346,7 @@ def task_fast_add(request, service_id):
 def task_add(request):
     res = dict()
     willContinue = True
+
     try:
         description = request.POST.get('description','')
         service_id = request.POST.get('service_id')
@@ -359,6 +360,8 @@ def task_add(request):
             new_task(test.id ,service.id)
             res['task_id'] = test.id
     except:
+        traceback.print_exc()
+        print(request.FILES)
         try:
             os.remove(test.tested_file.path)
         except:
@@ -369,7 +372,7 @@ def task_add(request):
             pass
         res = {"errmsg":"Request error"}
         willContinue = False
-    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
+    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False},encoder = NpEncoder)
     if willContinue:
         resp.status_code = 200
     else:
@@ -394,7 +397,7 @@ import cv2
 import zipfile
 import numpy as np
 
-def start_test(test_file_id , service_id, mode = 'mulitply'):
+def start_test(test_file_id , service_id):
     test_task =  Test_info.objects.get(id=test_file_id)
     test_file = test_task.tested_file
     test_task.threadID = threading.currentThread().ident
@@ -405,13 +408,14 @@ def start_test(test_file_id , service_id, mode = 'mulitply'):
     tested_model_type = test_task.mod.model_type
     tested_model_path = test_task.mod.file.path
     service = Service_info.objects.get(id=service_id)
-    print('fuck')
+    print("In Thread")
     try:
         input_info = test_task.mod.input
         if tested_model_type == 'pmml':
             input_shape = len(input_info)
         elif tested_model_type == 'onnx':
             input_shape = input_info[0]['shape']
+            input_shape = input_shape[1:]
         elif tested_model_type == 'keras':
             input_shape = input_info[0]['shape']
             input_shape = input_shape[1:]
@@ -478,9 +482,9 @@ def start_test(test_file_id , service_id, mode = 'mulitply'):
                     # 发现有时候最后会多一行，去掉
                     if input_file_list[-1] == "":
                         input_file_list.pop()
-                    for i in range(1, len(input_file_list)):
+                    for line in input_file_list:
                         # 使用zip将两组数据打包成字典
-                        tmp_data = input_file_list[i].split(',')
+                        tmp_data = line.split(',')
                         number_tmp_data = [float(x) for x in tmp_data]
                         if len(number_tmp_data) != np.prod(input_shape):
                             continue
@@ -492,22 +496,8 @@ def start_test(test_file_id , service_id, mode = 'mulitply'):
             test_task.save()
             return
         x_test = np.array(x_test).astype(np.float32)
+        print(x_test)
         res = batch_predict(path = tested_model_path, type = tested_model_type,x_test = x_test)
-        test_task.result = res
-        test_task.is_finished = True
-        test_task.recent_modified_time = timezone.now()
-        test_task.end_time = timezone.now()
-        test_task.save()
-        _,deltaTime = divmod((test_task.end_time - test_task.add_time).total_seconds(), 60)
-        service.average_use_time = \
-            (service.average_use_time * service.use_times + deltaTime)/(service.use_times + 1)
-        service.use_times = service.use_times + 1
-        if deltaTime > service.max_use_time:
-            service.max_use_time = deltaTime
-        if deltaTime < service.min_use_time:
-            service.min_use_time = deltaTime
-        service.save()
-        test_task.save()
     except:
         import traceback
         res = {"errmsg":traceback.format_exc()}
@@ -515,9 +505,25 @@ def start_test(test_file_id , service_id, mode = 'mulitply'):
         test_task.is_finished = True
         test_task.save()
         return
+    test_task.result = res
+    test_task.is_finished = True
+    test_task.recent_modified_time = timezone.now()
+    test_task.end_time = timezone.now()
+    test_task.save()
+    _,deltaTime = divmod((test_task.end_time - test_task.add_time).total_seconds(), 60)
+    service.average_use_time = \
+        (service.average_use_time * service.use_times + deltaTime)/(service.use_times + 1)
+    service.use_times = service.use_times + 1
+    if deltaTime > service.max_use_time:
+        service.max_use_time = deltaTime
+    if deltaTime < service.min_use_time:
+        service.min_use_time = deltaTime
+    service.save()
+    test_task.save()        
     return
 
 def new_task(test_file_id, service_id):
+    print("new task: {}".format(test_file_id))
     param_tuple = (test_file_id, service_id)
     new_thread = Thread(target=start_test, args=param_tuple)
     new_thread.start()
@@ -541,7 +547,6 @@ def test_quick(request, model_id):
             print("result: ", result)
             return JsonResponse(result,status=200)
         except:
-            import traceback
             traceback.print_exc()
             return JsonResponse({"errmsg":"输入参数与模型不符"},status=400)
     else:

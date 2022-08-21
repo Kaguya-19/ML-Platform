@@ -505,12 +505,7 @@ export default {
     } else if (obj instanceof Array) { // 数组情况
       for (let j = 0, len = obj.length; j < len; j++) {
         const arr = makeFormData(obj[j])
-
-        for (let k = 0, l = arr.length; k < l; k++) {
-          const key = form_data ? j + arr[k].key : '[' + j + ']' + arr[k].key
-
-          data.push({ key: key, value: arr[k].value })
-        }
+        data.push({ key: arr.key, value: arr })
       }
     } else if (typeof obj === 'object') { // object
       for (const j in obj) {

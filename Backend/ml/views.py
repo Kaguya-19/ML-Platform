@@ -255,15 +255,6 @@ def fast_test(request,id,type='model'):
     model_path = model.file.path
     model_type = model.model_type
     input_info = model.input
-    if model_type == 'pmml':
-        input_shape = len(input_info)
-    elif model_type == 'onnx':
-        input_shape = input_info[0]['shape']
-    elif model_type == 'keras':
-        input_shape = input_info[0]['shape']
-        input_shape = input_shape[1:]
-    else:
-        return
     # TODO: 预处理
     # TODO:base64处理
     x_test = []
@@ -271,15 +262,19 @@ def fast_test(request,id,type='model'):
     file_data = request.FILES
     input_name = [x["name"] for x in input_info]
     try:
-        for key in input_name:
-            if key in test_data:
-                value = test_data[key]
-                if isinstance(value,list):
-                    x_test += value
-                else:
-                    x_test.append(value)
+        print(test_data)
+        for keyi in input_name:
+            in_txt = False
+            for key in test_data:
+                if keyi in key:
+                    in_txt = True
+                    value = test_data[key]
+                    if isinstance(value,list):
+                        x_test += value
+                    else:
+                        x_test.append(value)
 
-            elif key in file_data:
+            if not in_txt and key in file_data:
                 file = file_data[key]
                 if '.jpg' in file.name:
                     print(file.file)

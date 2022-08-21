@@ -321,7 +321,7 @@ export default {
       // 加载数据方法 必须为 Promise 对象
       loadData: parameter => {
         return axios.get('/ml/deploy', {
-          params: Object.assign(parameter, { 'model_id': this.model_id })
+          params: Object.assign(parameter, { 'mod': this.model_id })
         }).then(res => {
             console.log(res.data)
             return res.data.result
@@ -499,9 +499,6 @@ export default {
         if (!err) {
           this.spinning = true
           Object.keys(values).forEach(key => {
-            if (this.isFile[key]) {
-              values[key] = values[key].file
-            }
             var val = values[key]
             console.log(val)
             if (typeof (val) === 'string' && val.startsWith('[') && val.endsWith(']')) {

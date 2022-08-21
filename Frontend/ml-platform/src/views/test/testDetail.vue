@@ -111,7 +111,7 @@ export default {
           const formData = new FormData()
           formData.append('status', 'undeployed')
           axios({
-            url: `/ml/test/${this.test_id}`,
+            url: `/ml/test/${thi.test_id}`,
             method: 'put',
             processData: false,
             headers: {
@@ -142,7 +142,7 @@ export default {
           const formData = new FormData()
           formData.append('status', 'deployed')
           axios({
-            url: `/ml/test/${this.test_id}`,
+            url: `/ml/test/${thi.test_id}`,
             method: 'put',
             processData: false,
             headers: {
@@ -173,7 +173,7 @@ export default {
           const formData = new FormData()
           formData.append('status', 'paused')
           axios({
-            url: `/ml/test/${this.test_id}`,
+            url: `/ml/test/${thi.test_id}`,
             method: 'put',
             processData: false,
             headers: {
@@ -182,8 +182,7 @@ export default {
             data: formData
             }).then(res => {
                 thi.$message.success('pause successfully.')
-                thi.resetForm()
-                thi.$refs.table.refresh(true)
+                thi.$route.go(0)
               }).catch(err => {
               console.log(err)
               try {

@@ -187,14 +187,13 @@
               </a-form>
             </a-card>
           </a-col>
-          <a-col :span="12">
+          <!-- <a-col :span="12">
           <a-card title="TestInput" :bordered="false" v-if="isJSON">
               <template #extra><a @click.stop="toJSON">Form</a></template>
               <a-textarea
                 rows="6"
                 v-model="jsonStr"
               />
-              <!-- <a-button @click.prevent="reset">Clear</a-button> -->
               <a-button type="primary" @click="submitJSON" style="margin-left: 16px">Submit</a-button>
               <a-button type="primary" @click="jsonCurl" style="margin-left: 16px">Curlcode</a-button>
             </a-card>
@@ -225,14 +224,8 @@
                       v-decorator="[data.name, { rules: [{required: true, message: 'Please give input'}]}]"
                     />
                   </a-form-item>
-                  <!-- <a-textarea
-                    rows="2"
-                    v-decorator="[data.name, { rules: [{required: true, message: 'Please give input'}]}]"
-                    v-else
-                  /> -->
                 </a-form-item>
                 <a-form-item :wrapper-col="{ span: 14, offset: 15 }">
-                  <!-- <a-button @click.prevent="reset">Clear</a-button> -->
                   <a-button type="primary" htmlType="submit" style="margin-left: 16px">Submit</a-button>
                   <a-button type="primary" @click="formCurl" style="margin-left: 16px">Curlcode</a-button>
                 </a-form-item>
@@ -247,7 +240,7 @@
               <textarea row="6" style="border: none" :value="testRes">
               </textarea>
             </a-card>
-          </a-col>
+          </a-col> -->
         </a-row>
       </template>
     </a-spin>
@@ -737,7 +730,11 @@ export default {
         title: 'CURL',
         content: this.curlStr,
         onOk () {},
-        onCancel () {}
+        onCancel () {
+          var test = document.getElementById('curlStr')
+          test.select()
+          document.execCommand('Copy')
+        }
       })
     },
     formCurl () {

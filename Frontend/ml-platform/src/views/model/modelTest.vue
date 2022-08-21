@@ -321,7 +321,7 @@ export default {
       // 加载数据方法 必须为 Promise 对象
       loadData: parameter => {
         return axios.get('/ml/deploy', {
-          params: Object.assign(parameter, { 'mod': this.model_id })
+          params: Object.assign(parameter, { 'model_id': this.model_id })
         }).then(res => {
             console.log(res.data)
             return res.data.result

@@ -30,10 +30,11 @@
         </a-row>
         <a-row type="flex" v-if="testStatus">
           <a-col flex="auto">
-            <a-statistic title="Endtime" :value="test_id" />
+            <a-statistic title="Endtime" :value="end_time" />
           </a-col>
           <a-col flex="auto">
-            <textarea row="6" style="border: none" :value="testRes">
+            <a-descriptions title="Result"></a-descriptions>
+            <textarea  title="Result" row="6" style="border: none" :value="testRes">
               </textarea>
           </a-col>
         </a-row>
@@ -81,7 +82,7 @@ export default {
     getInfo () {
       axios.get(`/ml/test/${this.test_id}`)
           .then(res => {
-            this.testStatus = res.data.status
+            this.testStatus = res.data.is_finished
             this.addTime = res.data.add_time
             this.testDescription = res.data.description
             this.model_id = res.data.mod
@@ -109,7 +110,7 @@ export default {
         okType: 'danger',
         onOk () {
           const formData = new FormData()
-          formData.append('status', 'undeployed')
+          formData.append('status', 'stop')
           axios({
             url: `/ml/test/${thi.test_id}`,
             method: 'put',
@@ -119,8 +120,8 @@ export default {
             },
             data: formData
             }).then(res => {
-                thi.$message.success('Undeploy successfully.')
-                thi.$route.go(0)
+                thi.$message.success('Stop successfully.')
+                thi.$router.go(0)
               }).catch(err => {
               console.log(err)
               try {
@@ -136,11 +137,11 @@ export default {
       const thi = this
       this.$confirm({
         title: 'Warning',
-        content: `Deploy?`,
+        content: `Run?`,
         okType: 'danger',
         onOk () {
           const formData = new FormData()
-          formData.append('status', 'deployed')
+          formData.append('status', 'run')
           axios({
             url: `/ml/test/${thi.test_id}`,
             method: 'put',
@@ -150,8 +151,8 @@ export default {
             },
             data: formData
             }).then(res => {
-                thi.$message.success('Deploy successfully.')
-                thi.$route.go(0)
+                thi.$message.success('Run successfully.')
+                thi.$router.go(0)
               }).catch(err => {
               console.log(err)
               try {
@@ -181,8 +182,8 @@ export default {
             },
             data: formData
             }).then(res => {
-                thi.$message.success('pause successfully.')
-                thi.$route.go(0)
+                thi.$message.success('Pause successfully.')
+                thi.$router.go(0)
               }).catch(err => {
               console.log(err)
               try {

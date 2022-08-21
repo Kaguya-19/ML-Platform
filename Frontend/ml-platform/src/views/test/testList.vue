@@ -191,7 +191,7 @@ export default {
         //   this.queryParam['model_type'] = this.filter_type
         // }
         if (this.filter_status !== '') {
-          this.queryParam['status'] = this.filter_status
+          this.queryParam['is_finished'] = this.filter_status
         }
         return axios.get('/ml/test', {
           params: Object.assign(parameter, this.queryParam)

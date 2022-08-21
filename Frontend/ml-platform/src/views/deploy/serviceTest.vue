@@ -771,11 +771,7 @@ export default {
       this.form.validateFields((err, values) => {
         if (!err) {
           this.spinning = true
-          var formData = new FormData()
-          console.log(values)
-          for (var v in values) {
-            formData.append(v, values[v])
-          }
+          const formData = this.toFormData(values)
           formData.append('service_id', this.deploy_id)
           console.log(values)
           axios({

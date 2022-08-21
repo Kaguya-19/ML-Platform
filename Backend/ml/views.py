@@ -459,9 +459,9 @@ def start_test(test_file_id , service_id):
                 # 发现有时候最后会多一行，去掉
                 if input_file_list[-1] == "":
                     input_file_list.pop()
-                for i in range(1, len(input_file_list)):
+                for line in input_file_list:
                     # 使用zip将两组数据打包成字典
-                    tmp_data = input_file_list[i].split(',')
+                    tmp_data = line.split(',')
                     number_tmp_data = [float(x) for x in tmp_data]
                     if len(number_tmp_data) != np.prod(input_shape):
                         continue
@@ -473,6 +473,7 @@ def start_test(test_file_id , service_id):
             test_task.save()
             return
         x_test = np.array(x_test).astype(np.float32)
+        print(x_test)
         res = batch_predict(path = tested_model_path, type = tested_model_type,x_test = x_test)
     except:
         res = {"errmsg":traceback.format_exc()}

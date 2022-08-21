@@ -12,6 +12,18 @@ from django.utils import timezone
 # Create your views here.
 from .models import Model_info,Test_info,Service_info
 from .filters import textFilter
+BASE_URL = '127.0.0.1:8000'
+import socket
+
+try:
+    s = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+    s.connect(('8.8.8.8',80))
+    BASE_URL = s.getsockname()[0]+':8001'
+except Exception:
+    BASE_URL = '127.0.0.1'
+finally:
+    s.close()
+
 
 def model_add_singlemodel(name,description,model_type,file):
     model = Model_info.objects.create(name=name,description=description,model_type=model_type,file=file)
@@ -20,7 +32,6 @@ def model_add_singlemodel(name,description,model_type,file):
 import os
 from .ml import get_model_info
 
-BASE_URL='http://127.0.0.1:8080'
 
 def model_api(request):
     if request.method == 'POST':
@@ -273,7 +284,11 @@ def task_fast_add(request, service_id):
     willContinue = True
     try:
         service = Service_info.objects.get(id=service_id)
-        res['result'] = fast_test(request,service_id,type='service')
+        if service.status != 'deployed':
+            res = {"errmsg":"Service isn't deployed."}
+            willContinue = False
+        else:
+            res['result'] = fast_test(request,service_id,type='service')
     except:
         res = {"errmsg":"Request error"}
         willContinue = False
@@ -291,12 +306,16 @@ def task_add(request):
         description = request.POST.get('description','')
         service_id = request.POST.get('service_id')
         service = Service_info.objects.get(id=service_id)
-        mod = service.mod
-        test = Test_info.objects.create(description=description,service=service,mod=mod)
-        test.tested_file = request.FILES['file']
-        test.save()
-        new_task(test.id ,service.id)
-        res['task_id'] = test.id
+        if service.status != 'deployed':
+            res = {"errmsg":"Service isn't deployed."}
+            willContinue = False
+        else:
+            mod = service.mod
+            test = Test_info.objects.create(description=description,service=service,mod=mod)
+            test.tested_file = request.FILES['file']
+            test.save()
+            new_task(test.id ,service.id)
+            res['task_id'] = test.id
     except:
         try:
             os.remove(test.tested_file.path)
@@ -692,6 +711,7 @@ def service_info(request, service_id):
         res = model_to_dict(service)
         res['add_time'] = service.add_time.strftime("%Y-%m-%d %H:%M")
         res['recent_modified_time'] = service.recent_modified_time.strftime("%Y-%m-%d %H:%M")
+        res['baseUrl'] = BASE_URL
     except:
         res = {"errmsg":"读取测试信息失败，可能您输入的测试文件已被删除"}
         willContinue = False
@@ -710,10 +730,8 @@ def service_change(request, service_id):
         service = Service_info.objects.get(id=service_id)
         name = request.PUT.get('name',service.name)
         description = request.PUT.get('description',service.description)
-        # TODO 改了状态后停止/启动/删除的反应
         status = request.PUT.get('status',service.status)
         func_str = request.PUT.get('func_str',service.func_str)
-
         service.recent_modified_time = timezone.now()
         service.name = name
         service.description = description

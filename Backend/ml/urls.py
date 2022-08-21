@@ -12,3 +12,4 @@ urlpatterns = [
     path('deploy',views.service_api),
     path('deploy/<int:service_id>',views.service_info_api),
 ]
+

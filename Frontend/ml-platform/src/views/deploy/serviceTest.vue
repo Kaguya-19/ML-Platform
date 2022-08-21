@@ -84,7 +84,6 @@
                   <a-button type="primary" @click="formCurl" style="margin-left: 16px">Curlcode</a-button>
                 </a-form-item>
               </a-form>
-
             </a-card>
           </a-col>
           <a-col :span="12">
@@ -189,6 +188,65 @@
             </a-card>
           </a-col>
           <a-col :span="12">
+          <a-card title="TestInput" :bordered="false" v-if="isJSON">
+              <template #extra><a @click.stop="toJSON">Form</a></template>
+              <a-textarea
+                rows="6"
+                v-model="jsonStr"
+              />
+              <!-- <a-button @click.prevent="reset">Clear</a-button> -->
+              <a-button type="primary" @click="submitJSON" style="margin-left: 16px">Submit</a-button>
+              <a-button type="primary" @click="jsonCurl" style="margin-left: 16px">Curlcode</a-button>
+            </a-card>
+            <a-card title="Input" :bordered="false" v-else>
+              <template #extra><a @click.stop="toJSON">JSON</a></template>
+              <a-form @submit="testFormSubmit" :form="form">
+                <a-form-item v-for="(data, index) in inputData" :key="index" :label="data.name+' (Type:'+data.type+')'">
+                  <a-switch
+                    :check="isFile[data.name]"
+                    :v-model="isFile[data.name]"
+                    checkedChildren="File"
+                    unCheckedChildren="Text"
+                    @change="chooseForT(data.name)"/>
+                  <a-form-item v-if="isFile[data.name]">
+                    <a-upload
+                      :before-upload="testBeforeUpload"
+                      :multiplt="false"
+                      :max-count="1"
+                      :name="data.name"
+                      v-decorator="[data.name, { rules: [{required: true, message: 'Please give input'}]}]"
+                    >
+                      <a-button> <a-icon type="upload" /> Select File </a-button>
+                    </a-upload>
+                  </a-form-item>
+                  <a-form-item v-else>
+                    <a-textarea
+                      rows="2"
+                      v-decorator="[data.name, { rules: [{required: true, message: 'Please give input'}]}]"
+                    />
+                  </a-form-item>
+                  <!-- <a-textarea
+                    rows="2"
+                    v-decorator="[data.name, { rules: [{required: true, message: 'Please give input'}]}]"
+                    v-else
+                  /> -->
+                </a-form-item>
+                <a-form-item :wrapper-col="{ span: 14, offset: 15 }">
+                  <!-- <a-button @click.prevent="reset">Clear</a-button> -->
+                  <a-button type="primary" htmlType="submit" style="margin-left: 16px">Submit</a-button>
+                  <a-button type="primary" @click="formCurl" style="margin-left: 16px">Curlcode</a-button>
+                </a-form-item>
+              </a-form>
+            </a-card>
+          </a-col>
+        </a-row>
+        <br/><br/>
+        <a-row type="flex" :gutter="16">
+          <a-col :span="20">
+            <a-card title="Output" :bordered="false">
+              <textarea row="6" style="border: none" :value="testRes">
+              </textarea>
+            </a-card>
           </a-col>
         </a-row>
       </template>
@@ -296,6 +354,7 @@ export default {
 
       curlStr: '',
       spinning: false,
+      baseUrl: '',
 
       columns: [
         {
@@ -369,6 +428,7 @@ export default {
             this.serviceStatus = res.data.status
             this.serviceName = res.data.name
             this.func_str = res.data.func_str
+            this.baseUrl = res.data.baseUrl
             this.getModelInfo()
             }).catch(err => {
             this.spinning = false
@@ -610,7 +670,7 @@ export default {
       })
     },
     jsonCurl () {
-      this.curlStr = `curl --location --request POST 'http://127.0.0.1:8001/ml/deploy/${this.deploy_id}'`
+      this.curlStr = `curl --location --request POST 'http://${this.baseUrl}/ml/deploy/${this.deploy_id}'`
       try {
       var jsonJson = JSON.parse(this.jsonStr)
       } catch (err) {
@@ -632,7 +692,7 @@ export default {
     formCurl () {
       this.form.validateFields((err, values) => {
         if (!err) {
-          this.curlStr = `curl --location --request POST 'http://127.0.0.1:8001/ml/deploy/${this.deploy_id}'`
+          this.curlStr = `curl --location --request POST 'http://${this.baseUrl}/ml/deploy/${this.deploy_id}'`
           for (var v in values) {
            try {
             const reader = new FileReader()
@@ -716,7 +776,7 @@ export default {
             formData.append(v, values[v])
            }
           }
-          console.log(values) 
+          console.log(values)
           axios({
             url: `/ml/deploy/${this.deploy_id}`,
             method: 'put',

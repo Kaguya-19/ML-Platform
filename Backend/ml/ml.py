@@ -310,8 +310,7 @@ class ONNXModel(BaseModel):
                 x_test = x_test.reshape(1,len(x_test))
             sess = self._get_inference_session()
             y_pred = None
-            if function_name in (FUNCTION_NAME_CLASSIFICATION, FUNCTION_NAME_REGRESSION) and len(
-                    sess.get_inputs()) == 1:
+            if len(sess.get_inputs()) == 1:
                 input_name = sess.get_inputs()[0].name
                 output = sess.run(None, {
                                   input_name: x_test.astype(np.float32)})

@@ -499,6 +499,9 @@ export default {
         if (!err) {
           this.spinning = true
           Object.keys(values).forEach(key => {
+            if (this.isFile[key]) {
+              values[key] = values[key].file
+            }
             var val = values[key]
             console.log(val)
             if (typeof (val) === 'string' && val.startsWith('[') && val.endsWith(']')) {

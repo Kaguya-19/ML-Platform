@@ -18,7 +18,7 @@
           <a-button @click="pause" v-if="serviceStatus!='pause'">Pause</a-button>
           <template #extra><a :href="&quot;/model/model-test?id=&quot;+model_id">Model</a></template>
           <br/>
-          <a :href="&quot;http://&quot;+baseUrl+&quot;/ml/deploy/&quot;+deploy_id">{{baseUrl}}/ml/deploy/{{ deploy_id }}</a>
+          <a :href="&quot;http://&quot;+baseUrl+&quot;/ml/deploy/&quot;+deploy_id">{{ baseUrl }}/ml/deploy/{{ deploy_id }}</a>
           <a-table :columns="funcColumns" :data-source="funcData">
           </a-table>
           <a-descriptions title="Description" v-if="serviceDescription !== ''" :value="serviceDescription">
@@ -545,6 +545,9 @@ export default {
         if (!err) {
           this.spinning = true
           Object.keys(values).forEach(key => {
+            if (this.isFile[key]) {
+              values[key] = values[key].file
+            }
             var val = values[key]
             console.log(val)
             if (typeof (val) === 'string' && val.startsWith('[') && val.endsWith(']')) {

@@ -13,6 +13,7 @@ from django.utils import timezone
 # Create your views here.
 from .models import Model_info,Test_info,Service_info
 from .filters import textFilter
+from .pre_process_example import defualt_process
 BASE_URL = '127.0.0.1:8000'
 import socket
 
@@ -247,34 +248,57 @@ def model_change(request, model_id):
     return resp
 
 def fast_test(request,id,type='model'):
-    # input_x = dict()
-    # for key in request.FILES:
-    #     input_x[key] = request.FILES[key]
-    # for key in request.POST:
-    #     input_x[key] = request.POST[key]
-    x_test = []
     if type == 'model':
         model = Model_info.objects.get(id=id)
     else:
         model = Service_info.objects.get(id=id).mod
     model_path = model.file.path
     model_type = model.model_type
+    input_info = model.input
+    if model_type == 'pmml':
+        input_shape = len(input_info)
+    elif model_type == 'onnx':
+        input_shape = input_info[0]['shape']
+    elif model_type == 'keras':
+        input_shape = input_info[0]['shape']
+        input_shape = input_shape[1:]
+    else:
+        return
     # TODO: 预处理
     # TODO:base64处理
+    x_test = []
     test_data = request.POST
-    print(test_data)
-    for key, value in test_data.items():
-        if isinstance(value,list):
-            x_test += value
-        else:
-            x_test.append(value)
-    x_test = np.array(x_test).astype(np.float32)
-    for key in request.FILES:
-        x_test += np.load(request.FILES[key])
-    x_test = np.array(x_test).astype(np.float32)
-    print("x_test", x_test)
-    # TODO: 预处理
-    return quick_predict(model_path,type = model_type,x_test = x_test)
+    file_data = request.FILES
+    input_name = [x["name"] for x in input_info]
+    try:
+        for key in input_name:
+            if key in test_data:
+                value = test_data[key]
+                if isinstance(value,list):
+                    x_test += value
+                else:
+                    x_test.append(value)
+
+            elif key in file_data:
+                file = file_data[key]
+                if '.jpg' in file.name:
+                    print(file.file)
+                    x_test = cv2.imdecode(np.frombuffer(file.file.read(),np.uint8), cv2.IMREAD_COLOR)
+                    x_test = defualt_process(x_test)
+                    #process img
+                    break
+                elif '.csv' in file.name or '.txt' in file.name:
+                    while True:
+                        txtstr = file.file.encode('utf-8')
+                        import re
+                        txtlist = re.split(r'\s|,',txtstr)
+                        x_test.append(txtlist)
+        x_test = np.array(x_test).astype(np.float32)
+        print("x_test", x_test.shape)
+        return quick_predict(model_path,type = model_type,x_test = x_test)
+    except Exception as e:
+        import traceback
+        return {"stderr":traceback.format_exc()}
 
 def test_add(request,model_id):
     res = dict()

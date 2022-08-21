@@ -7,7 +7,7 @@
       <a-card :bordered="false">
         <template #extra><a :href="&quot;/model/deploy-test?id=&quot;+deploy_id">Service</a></template>
         <a :href="&quot;/model/model-test?id=&quot;+model_id">Model</a>
-        <a style="margin-left: 30px" :href="testUrl">Test File</a>
+        <a style="margin-left: 30px" :href="&quot;http://&quot;+testUrl">Test File</a>
         <br/><br/>
         <!-- TODO: wait backend -->
         <a-button @click="deploy" v-if="testStatus!='run'">Run</a-button>
@@ -120,7 +120,7 @@ export default {
             data: formData
             }).then(res => {
                 thi.$message.success('Undeploy successfully.')
-                this.$route.go(0)
+                thi.$route.go(0)
               }).catch(err => {
               console.log(err)
               try {

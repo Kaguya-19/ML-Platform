@@ -636,14 +636,14 @@ export default {
             },
             data: formData
             }).then(res => {
-                this.spinning = false
+                thi.spinning = false
                 thi.$message.success('pause successfully.')
-                this.$route.go(0)
+                thi.$route.go(0)
               }).catch(err => {
               console.log(err)
               if ('errmsg' in err.response.data) {
                 thi.$message.error(err.response.data.errmsg)
-                this.$router.go(0)
+                thi.$router.go(0)
               } else {
                 thi.$message.error('pause failed.')
                 }
@@ -658,11 +658,11 @@ export default {
         content: `Deploy?`,
         okType: 'danger',
         onOk () {
-          this.spinning = true
+          thi.spinning = true
           const formData = new FormData()
           formData.append('status', 'deployed')
           axios({
-            url: `/ml/deploy/${this.deploy_id}`,
+            url: `/ml/deploy/${thi.deploy_id}`,
             method: 'put',
             processData: false,
             headers: {
@@ -670,14 +670,14 @@ export default {
             },
             data: formData
             }).then(res => {
-                this.spinning = false
+                thi.spinning = false
                 thi.$message.success('Depoly successfully.')
-                this.$router.go(0)
+                thi.$router.go(0)
               }).catch(err => {
               console.log(err)
               try {
                 thi.$message.error(err.response.data.errmsg)
-                this.$router.go(0)
+                thi.$router.go(0)
               } catch (err) {
                 thi.$message.error('Depoly failed.')
                 }
@@ -692,11 +692,11 @@ export default {
         content: `Undeploy?`,
         okType: 'danger',
         onOk () {
-          this.spinning = true
+          thi.spinning = true
           const formData = new FormData()
           formData.append('status', 'undeployed')
           axios({
-            url: `/ml/deploy/${this.deploy_id}`,
+            url: `/ml/deploy/${thi.deploy_id}`,
             method: 'put',
             processData: false,
             headers: {
@@ -704,15 +704,15 @@ export default {
             },
             data: formData
             }).then(res => {
-                this.spinning = false
+                thi.spinning = false
                 thi.$message.success('Undeploy successfully.')
-                this.$router.go(0)
+                thi.$router.go(0)
               }).catch(err => {
               console.log(err)
               try {
-                this.spinning = false
+                thi.spinning = false
                 thi.$message.error(err.response.data.errmsg)
-                this.$router.go(0)
+                thi.$router.go(0)
               } catch (err) {
                 thi.$message.error('Undeploy failed.')
                 }
@@ -791,11 +791,12 @@ export default {
             }).then(res => {
                 this.spinning = false
                 this.$message.success('upload successfully.')
+                const thi = this
                 this.$info({
                   title: 'Task ID',
                   content: 'Task ID:' + res.data.task_id.toString(),
                   onOk () {
-                    this.$router.push({ path: '/test/test-detail', query: { id: res.data.task_id } })
+                    thi.$router.push({ path: '/test/test-detail', query: { id: res.data.task_id } })
                   },
                   onCancel () {}
                 })

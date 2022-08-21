@@ -36,6 +36,4 @@ def defualt_process(img):
     img = torch.from_numpy(img)
     img = img.float()
     img = img.unsqueeze(0)
-    if img.ndimension() == 3:
-        img = img.unsqueeze(0)
     return img

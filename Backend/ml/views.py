@@ -16,6 +16,8 @@ from .filters import textFilter
 from .pre_process_example import defualt_process
 BASE_URL = '127.0.0.1:8000'
 import socket
+import traceback
+
 
 try:
     s = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
@@ -274,8 +276,8 @@ def fast_test(request,id,type='model'):
                     else:
                         x_test.append(value)
 
-            if not in_txt and key in file_data:
-                file = file_data[key]
+            if not in_txt and keyi in file_data:
+                file = file_data[keyi]
                 if '.jpg' in file.name:
                     print(file.file)
                     x_test = cv2.imdecode(np.frombuffer(file.file.read(),np.uint8), cv2.IMREAD_COLOR)
@@ -292,7 +294,6 @@ def fast_test(request,id,type='model'):
         print("x_test", x_test.shape)
         return quick_predict(model_path,type = model_type,x_test = x_test)
     except Exception as e:
-        import traceback
         return {"stderr":traceback.format_exc()}
 
 def test_add(request,model_id):
@@ -333,6 +334,7 @@ def task_fast_add(request, service_id):
 def task_add(request):
     res = dict()
     willContinue = True
+
     try:
         description = request.POST.get('description','')
         service_id = request.POST.get('service_id')
@@ -343,11 +345,13 @@ def task_add(request):
         else:
             mod = service.mod
             test = Test_info.objects.create(description=description,service=service,mod=mod)
-            test.tested_file = request.FILES['file']
+            test.tested_file = request.FILES['file.file']
             test.save()
             new_task(test.id ,service.id)
             res['task_id'] = test.id
     except:
+        traceback.print_exc()
+        print(request.FILES)
         try:
             os.remove(test.tested_file.path)
         except:
@@ -383,7 +387,7 @@ import cv2
 import zipfile
 import numpy as np
 
-def start_test(test_file_id , service_id, mode = 'mulitply'):
+def start_test(test_file_id , service_id):
     test_task =  Test_info.objects.get(id=test_file_id)
     test_file = test_task.tested_file
     test_task.threadID = threading.currentThread().ident
@@ -394,12 +398,14 @@ def start_test(test_file_id , service_id, mode = 'mulitply'):
     tested_model_type = test_task.mod.model_type
     tested_model_path = test_task.mod.file.path
     service = Service_info.objects.get(id=service_id)
+    print("In Thread")
     try:
         input_info = test_task.mod.input
         if tested_model_type == 'pmml':
             input_shape = len(input_info)
         elif tested_model_type == 'onnx':
             input_shape = input_info[0]['shape']
+            input_shape = input_shape[1:]
         elif tested_model_type == 'keras':
             input_shape = input_info[0]['shape']
             input_shape = input_shape[1:]
@@ -416,16 +422,18 @@ def start_test(test_file_id , service_id, mode = 'mulitply'):
                             image = cv2.imdecode(image, cv2.IMREAD_COLOR)
                             global preprocess_result
                             preprocess_result = {}
-                            func_str = service.func_str  # TODO:具体互动细节（获取脚本）
-                            exec(func_str)
-                            preprocessed_img = preprocess_result['result']
+                            """ func_str = service.func_str  # TODO:具体互动细节（获取脚本）
+                            exec(func_str) """
+                            preprocessed_img = defualt_process(image)
                             if preprocessed_img.shape != tuple(input_shape):
                                 res = {"errmsg":"输入图片不适配此模型"}
+                                print("preprocessed_img.shape: ", preprocessed_img.shape)
+                                print("input_shape: ",input_shape)
                                 test_task.result = res
                                 test_task.is_finished = True
                                 test_task.save()
                                 return
-                            x_test.append(preprocessed_img.tolist())
+                            x_test.append(preprocessed_img.numpy())
                             # cv2.imshow('image', image)
                     elif '.txt' in name:
                         with zfile.open(name, 'r') as file_to_read:  # 打开文件，将其值赋予file_to_read
@@ -464,13 +472,17 @@ def start_test(test_file_id , service_id, mode = 'mulitply'):
             test_task.is_finished = True
             test_task.save()
             return
-        res['result'] = batch_predict(path = tested_model_path, type = tested_model_type,x_test = x_test)
-        test_task.result = res['result']
+        x_test = np.array(x_test).astype(np.float32)
+        res = batch_predict(path = tested_model_path, type = tested_model_type,x_test = x_test)
+    except:
+        res = {"errmsg":traceback.format_exc()}
+    finally:
+        test_task.result = res
         test_task.is_finished = True
         test_task.recent_modified_time = timezone.now()
         test_task.end_time = timezone.now()
         test_task.save()
-        _,deltaTime = divmod((test_task.end_time - test_task.start_time).total_seconds(), 60)
+        _,deltaTime = divmod((test_task.end_time - test_task.add_time).total_seconds(), 60)
         service.average_use_time = \
             (service.average_use_time * service.use_times + deltaTime)/(service.use_times + 1)
         service.use_times = service.use_times + 1
@@ -479,12 +491,10 @@ def start_test(test_file_id , service_id, mode = 'mulitply'):
         if deltaTime < service.min_use_time:
             service.min_use_time = deltaTime
         service.save()
-        test_task.save()
-    except:
-        JsonResponse({"errmsg":"获取信息失败"},status=400)
     return
 
 def new_task(test_file_id, service_id):
+    print("new task: {}".format(test_file_id))
     param_tuple = (test_file_id, service_id)
     new_thread = Thread(target=start_test, args=param_tuple)
     new_thread.start()
@@ -508,7 +518,6 @@ def test_quick(request, model_id):
             print("result: ", result)
             return JsonResponse(result,status=200)
         except:
-            import traceback
             traceback.print_exc()
             return JsonResponse({"errmsg":"输入参数与模型不符"},status=400)
     else:

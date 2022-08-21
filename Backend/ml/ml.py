@@ -339,17 +339,16 @@ class ONNXModel(BaseModel):
             # convert to numpy array if not
             x_test = self._to_ndarray(x_test).astype(np.float32)
             sess = self._get_inference_session()
-            if function_name in (FUNCTION_NAME_CLASSIFICATION, FUNCTION_NAME_REGRESSION) and len(
-                    sess.get_inputs()) == 1:
+            if len(sess.get_inputs()) == 1:
                 input_name = sess.get_inputs()[0].name
                 output = [sess.run(None, {
-                    input_name: x_test[i]}) for i in range(x_test.shape[0])]
+                    input_name: x_test})]
                 sess = self._get_inference_session()
                 output_fields = sess.get_outputs()
                 for i in range(len(output[0])):
                     tmp_sample = {}
                     for j in range(len(output_fields)):
-                        tmp_sample[output_fields[j].name] = output[i][j]
+                        tmp_sample[output_fields[j].name] = output[i][j].tolist()
                     result.append(tmp_sample)
                 return {
                     "result": result,

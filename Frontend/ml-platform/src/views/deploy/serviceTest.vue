@@ -15,7 +15,7 @@
         <a-card :bordered="false" title="Indicators">
           <a-button @click="deploy" v-if="serviceStatus!='deployed'">Deploy</a-button>
           <a-button @click="undeploy" v-if="serviceStatus!='undeployed'">Undeploy</a-button>
-          <a-button @click="pause" v-if="serviceStatus!='pause'">Pause</a-button>
+          <a-button @click="pause" v-if="serviceStatus!='paused'">Pause</a-button>
           <template #extra><a :href="&quot;/model/model-test?id=&quot;+model_id">Model</a></template>
           <br/>
           <a :href="&quot;http://&quot;+baseUrl+&quot;/ml/deploy/&quot;+deploy_id">{{ baseUrl }}/ml/deploy/{{ deploy_id }}</a>
@@ -617,14 +617,14 @@ export default {
       const thi = this
       this.$confirm({
         title: 'Warning',
-        content: `Pasue?`,
+        content: `Pause?`,
         okType: 'danger',
         onOk () {
           const formData = new FormData()
           formData.append('status', 'paused')
-          this.spinning = true
+          thi.spinning = true
           axios({
-            url: `/ml/deploy/${this.deploy_id}`,
+            url: `/ml/deploy/${thi.deploy_id}`,
             method: 'put',
             processData: false,
             headers: {
@@ -634,12 +634,12 @@ export default {
             }).then(res => {
                 thi.spinning = false
                 thi.$message.success('pause successfully.')
-                thi.$route.go(0)
+                thi.$router.go(0)
               }).catch(err => {
               console.log(err)
+              thi.spinning = false
               if ('errmsg' in err.response.data) {
                 thi.$message.error(err.response.data.errmsg)
-                thi.$router.go(0)
               } else {
                 thi.$message.error('pause failed.')
                 }
@@ -670,10 +670,10 @@ export default {
                 thi.$message.success('Depoly successfully.')
                 thi.$router.go(0)
               }).catch(err => {
+              thi.spinning = false
               console.log(err)
               try {
                 thi.$message.error(err.response.data.errmsg)
-                thi.$router.go(0)
               } catch (err) {
                 thi.$message.error('Depoly failed.')
                 }
@@ -705,10 +705,9 @@ export default {
                 thi.$router.go(0)
               }).catch(err => {
               console.log(err)
+              thi.spinning = false
               try {
-                thi.spinning = false
                 thi.$message.error(err.response.data.errmsg)
-                thi.$router.go(0)
               } catch (err) {
                 thi.$message.error('Undeploy failed.')
                 }
@@ -729,14 +728,14 @@ export default {
       for (var v in jsonJson) {
         this.curlStr += ` \\\n--form '${v}="${jsonJson[v]}"'`
       }
-      this.$info({
+      const thi = this
+      this.$confirm({
         title: 'CURL',
         content: this.curlStr,
+        cancelText: 'Copy to clipborad',
         onOk () {},
         onCancel () {
-          var test = document.getElementById('curlStr')
-          test.select()
-          document.execCommand('Copy')
+          thi.$copyText(thi.curlStr)
         }
       })
     },
@@ -758,11 +757,15 @@ export default {
           }
         }
       })
-      this.$info({
+      const thi = this
+      this.$confirm({
         title: 'CURL',
         content: this.curlStr,
+        cancelText: 'Copy to clipborad',
         onOk () {},
-        onCancel () {}
+        onCancel () {
+          thi.$copyText(thi.curlStr)
+        }
       })
     },
     taskFormSubmit (e) {
@@ -771,16 +774,7 @@ export default {
       this.form.validateFields((err, values) => {
         if (!err) {
           this.spinning = true
-          var formData = new FormData()
-          console.log(values)
-          for (var v in values) {
-           try {
-            formData.append(v, values[v].file)
-           } catch (err) {
-            console.log(err)
-            formData.append(v, values[v])
-           }
-          }
+          const formData = this.toFormData(values)
           formData.append('service_id', this.deploy_id)
           console.log(values)
           axios({
@@ -821,12 +815,7 @@ export default {
           var formData = new FormData()
           console.log(values)
           for (var v in values) {
-           try {
-            formData.append(v, values[v].file)
-           } catch (err) {
-            console.log(err)
             formData.append(v, values[v])
-           }
           }
           console.log(values)
           axios({

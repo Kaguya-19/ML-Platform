@@ -525,16 +525,17 @@ def test_all(request):
         pageNo = int(request.GET.get('pageNo',1))
         pageSize = int(request.GET.get('pageSize',10))
         description = request.GET.get('name','')
-        is_finished = request.GET.get('is_finished',0)
+        is_finished = request.GET.get('is_finished','')
+        service = request.GET.get('service',0)
 
         if is_finished != '':
             tests = Test_info.objects.filter(is_finished=is_finished).order_by('id').values('description','is_finished','id','add_time','recent_modified_time')
-            print(tests)
         else:
-            tests = Model_info.objects.order_by('id').values('description','is_finished','id','add_time','recent_modified_time')
+            tests = Test_info.objects.order_by('id').values('description','is_finished','id','add_time','recent_modified_time')
         if description != '':
             tests = textFilter({"description":description}, queryset=tests).qs
-        
+        if service != 0:
+            tests=tests.filter(service=service).order_by('id')
         paginator = Paginator(tests, pageSize)
         se = list(paginator.page(pageNo))
         for inf in se:
@@ -692,7 +693,7 @@ def service_all(request):
         status = request.GET.get('status',-1)
 
         if model_id != -1:
-            services = Service_info.objects.filter(model__id = model_id,).order_by('id').values('name','description','id','add_time',
+            services = Service_info.objects.filter(mod = model_id,).order_by('id').values('name','description','id','add_time',
                                                                         'recent_modified_time','status','average_use_time','use_times')
             print(services)
         else:

@@ -19,11 +19,13 @@ import bootstrap from './core/bootstrap'
 import './core/lazy_use' // use lazy load components
 import './utils/filter' // global filter
 import './global.less' // global style
+import VueClipboard from 'vue-clipboard2'
 
 Vue.config.productionTip = false
 
 // mount axios to `Vue.$http` and `this.$http`
 Vue.use(VueAxios)
+Vue.use(VueClipboard)
 // use pro-layout components
 Vue.component('pro-layout', ProLayout)
 Vue.component('page-container', PageHeaderWrapper)

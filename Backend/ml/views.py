@@ -7,6 +7,7 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from django.forms.models import model_to_dict
 from django.core.paginator import  Paginator
+from django.core.serializers import json
 import datetime
 from django.utils import timezone
 # Create your views here.
@@ -21,6 +22,17 @@ import os
 from .ml import get_model_info
 
 BASE_URL='http://127.0.0.1:8080'
+
+class NpEncoder(json.DjangoJSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
+
 
 def model_api(request):
     if request.method == 'POST':
@@ -239,6 +251,7 @@ def fast_test(request,id,type='model'):
     # TODO: 预处理
     # TODO:base64处理
     test_data = request.POST
+    print(test_data)
     for key, value in test_data.items():
         if isinstance(value,list):
             x_test += value
@@ -248,8 +261,7 @@ def fast_test(request,id,type='model'):
     for key in request.FILES:
         x_test += np.load(request.FILES[key])
     x_test = np.array(x_test).astype(np.float32)
-    if model_type == "pmml":
-        x_test = x_test.reshape(1,len(x_test))
+    print("x_test", x_test)
     # TODO: 预处理
     return quick_predict(model_path,type = model_type,x_test = x_test)
 
@@ -257,11 +269,11 @@ def test_add(request,model_id):
     res = dict()
     willContinue = True
     try:
-        res['result'] = fast_test(request,model_id)
+        res = fast_test(request,model_id)
     except:
         res = {"errmsg":"Request error"}
         willContinue = False
-    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
+    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False},encoder = NpEncoder)
     if willContinue:
         resp.status_code = 200
     else:
@@ -273,11 +285,12 @@ def task_fast_add(request, service_id):
     willContinue = True
     try:
         service = Service_info.objects.get(id=service_id)
-        res['result'] = fast_test(request,service_id,type='service')
+        res = fast_test(request,service_id,type='service')
+        print(res)
     except:
         res = {"errmsg":"Request error"}
         willContinue = False
-    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
+    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False},encoder = NpEncoder)
     if willContinue:
         resp.status_code = 200
     else:
@@ -308,7 +321,7 @@ def task_add(request):
             pass
         res = {"errmsg":"Request error"}
         willContinue = False
-    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
+    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False},encoder = NpEncoder)
     if willContinue:
         resp.status_code = 200
     else:
@@ -454,8 +467,6 @@ def test_quick(request, model_id):
                 else:
                     x_test.append(value)
             x_test = np.array(x_test).astype(np.float32)
-            if model_type == "pmml":
-                x_test = x_test.reshape(1,len(x_test))
             result = quick_predict(model_path,model_type,x_test)
             print("result: ", result)
             return JsonResponse(result,status=200)

@@ -306,6 +306,8 @@ class ONNXModel(BaseModel):
                 None)
             # convert to numpy array if not
             x_test = self._to_ndarray(x_test)
+            if x_test.ndim == 1:
+                x_test = x_test.reshape(1,len(x_test))
             sess = self._get_inference_session()
             y_pred = None
             if function_name in (FUNCTION_NAME_CLASSIFICATION, FUNCTION_NAME_REGRESSION) and len(
@@ -512,6 +514,8 @@ class PMMLModel(BaseModel):
         if x_test is not None:
             try:
                 result = {}
+                if x_test.ndim == 1:
+                    x_test = x_test.reshape(1,len(x_test))
                 y_pred = self.pmml_model.predict(x_test)
                 y_pred = pd.DataFrame(y_pred)
                 output_fields = self.pmml_model.outputFields

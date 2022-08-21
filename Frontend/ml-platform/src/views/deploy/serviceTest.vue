@@ -16,9 +16,9 @@
           <a-button @click="deploy" v-if="serviceStatus!='deployed'">Deploy</a-button>
           <a-button @click="undeploy" v-if="serviceStatus!='undeployed'">Undeploy</a-button>
           <a-button @click="pause" v-if="serviceStatus!='pause'">Pause</a-button>
-          <template #extra><a :href='"/model/model-test?id="+model_id'>Model</a></template>
+          <template #extra><a :href="&quot;/model/model-test?id=&quot;+model_id">Model</a></template>
           <br/>
-          <a :href='"http://127.0.0.1:8001/ml/deploy/"+deploy_id'>127.0.0.1:8001/ml/deploy/{{deploy_id}}</a>
+          <a :href="&quot;http://127.0.0.1:8001/ml/deploy/&quot;+deploy_id">127.0.0.1:8001/ml/deploy/{{ deploy_id }}</a>
           <a-table :columns="funcColumns" :data-source="funcData">
           </a-table>
           <a-descriptions title="Description" v-if="serviceDescription !== ''" :value="serviceDescription">
@@ -136,7 +136,7 @@
         </a-row>
       </template>
       <template v-if="page=='list'">
-      <a-row type="flex" :gutter="16">
+        <a-row type="flex" :gutter="16">
           <s-table
             ref="table"
             size="default"
@@ -435,27 +435,73 @@ export default {
       console.log(file)
       return false
     },
+    toFormData (obj) {
+    const form = new FormData()
+    makeFormData(obj, form)
+  /** 多层json数据转成formData */
+    function makeFormData (obj, form_data) {
+    const data = []
+
+    if (obj instanceof File) {
+      data.push({ key: '', value: obj })
+    } else if (obj instanceof Array) { // 数组情况
+      for (let j = 0, len = obj.length; j < len; j++) {
+        const arr = makeFormData(obj[j])
+
+        for (let k = 0, l = arr.length; k < l; k++) {
+          const key = form_data ? j + arr[k].key : '[' + j + ']' + arr[k].key
+
+          data.push({ key: key, value: arr[k].value })
+        }
+      }
+    } else if (typeof obj === 'object') { // object
+      for (const j in obj) {
+        const arr = makeFormData(obj[j])
+
+        for (let k = 0, l = arr.length; k < l; k++) {
+          const key = form_data ? j + arr[k].key : '.' + j + '' + arr[k].key
+
+          data.push({ key: key, value: arr[k].value })
+        }
+      }
+    } else {
+      data.push({ key: '', value: obj })
+    }
+
+      if (form_data) {
+      // 封装
+        for (let i = 0, len = data.length; i < len; i++) {
+          form_data.append(data[i].key, data[i].value)
+        }
+      } else {
+        return data
+      }
+    };
+
+      return form
+    },
     testFormSubmit (e) {
       e.preventDefault()
       console.log(this.form)
       this.form.validateFields((err, values) => {
         if (!err) {
           this.spinning = true
-          var formData = new FormData()
-          console.log(values)
-          for (var v in values) {
-           try {
-            formData.append(v, values[v].file)
-           } catch (err) {
-            console.log(err)
-            formData.append(v, values[v])
-           }
-          }
+          Object.keys(values).forEach(key => {
+            var val = values[key]
+            console.log(val)
+            if (typeof (val) === 'string' && val.startsWith('[') && val.endsWith(']')) {
+              values[key] = val.split(/\s|,|\[|\]/).filter(item => item !== '')
+            }
+          })
+          var formData = this.toFormData(values)
           console.log(values) // TODO: waiting anime
           axios({
             url: `/ml/deploy/${this.deploy_id}`,
             method: 'post',
             processData: false,
+            headers: {
+               'Content-Type': 'application/x-www-form-urlencoded'
+            },
             data: formData
             }).then(res => {
                 this.spinning = false
@@ -483,14 +529,14 @@ export default {
       }
       console.log(jsonJson)
       this.spinning = true
-      const formData = new FormData()
-      Object.keys(jsonJson).forEach((key) => {
-      formData.append(key, jsonJson[key])
-      })
+      const formData = this.toFormData(jsonJson)
       axios({
             url: `/ml/deploy/${this.deploy_id}`,
             method: 'post',
             processData: false,
+            headers: {
+               'Content-Type': 'application/x-www-form-urlencoded'
+            },
             data: formData
             }).then(res => {
                 this.spinning = false
@@ -716,7 +762,7 @@ export default {
             formData.append(v, values[v])
            }
           }
-          console.log(values) 
+          console.log(values)
           axios({
             url: `/ml/deploy/${this.deploy_id}`,
             method: 'put',

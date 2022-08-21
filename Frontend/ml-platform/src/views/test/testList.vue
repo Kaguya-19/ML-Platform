@@ -22,8 +22,8 @@
               <a-form-item label="Status">
                 <a-select placeholder="" default-value="" v-model="filter_status">
                   <a-select-option value="">All</a-select-option>
-                  <a-select-option value=0>Unfinished</a-select-option>
-                  <a-select-option value=1>Finished</a-select-option>
+                  <a-select-option value="0">Unfinished</a-select-option>
+                  <a-select-option value="1">Finished</a-select-option>
                 </a-select>
               </a-form-item>
             </a-col>

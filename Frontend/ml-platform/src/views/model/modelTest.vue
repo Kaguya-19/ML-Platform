@@ -410,6 +410,51 @@ export default {
     testBeforeUpload (file) {
       return false
     },
+    toFormData (obj) {
+    const form = new FormData()
+    makeFormData(obj, form)
+  /** 多层json数据转成formData */
+    function makeFormData (obj, form_data) {
+    const data = []
+
+    if (obj instanceof File) {
+      data.push({ key: '', value: obj })
+    } else if (obj instanceof Array) { // 数组情况
+      for (let j = 0, len = obj.length; j < len; j++) {
+        const arr = makeFormData(obj[j])
+
+        for (let k = 0, l = arr.length; k < l; k++) {
+          const key = form_data ? j + arr[k].key : '[' + j + ']' + arr[k].key
+
+          data.push({ key: key, value: arr[k].value })
+        }
+      }
+    } else if (typeof obj === 'object') { // object
+      for (const j in obj) {
+        const arr = makeFormData(obj[j])
+
+        for (let k = 0, l = arr.length; k < l; k++) {
+          const key = form_data ? j + arr[k].key : '.' + j + '' + arr[k].key
+
+          data.push({ key: key, value: arr[k].value })
+        }
+      }
+    } else {
+      data.push({ key: '', value: obj })
+    }
+
+      if (form_data) {
+      // 封装
+        for (let i = 0, len = data.length; i < len; i++) {
+          form_data.append(data[i].key, data[i].value)
+        }
+      } else {
+        return data
+      }
+    };
+
+      return form
+    },
     handleSubmit (e) {
       e.preventDefault()
       this.form.validateFields((err, values) => {
@@ -452,19 +497,18 @@ export default {
     },
     testFormSubmit (e) {
       e.preventDefault()
-      console.log(this.form)
       this.form.validateFields((err, values) => {
         if (!err) {
           this.spinning = true
-          var formData = new FormData()
-          console.log(values)
-          for (var v in values) {
-           if (this.isFile[v]) {
-              formData.append(v, values[v].file)
-            } else {
-              formData.append(v, values[v])
+          Object.keys(values).forEach(key => {
+            var val = values[key]
+            console.log(val)
+            if (typeof (val) === 'string' && val.startsWith('[') && val.endsWith(']')) {
+              values[key] = val.split(/\s|,|\[|\]/).filter(item => item !== '')
             }
-          }
+          })
+          console.log(values)
+          var formData = this.toFormData(values)
           console.log(`formData`, formData) // TODO: waiting anime
           axios({
             url: `/ml/model/${this.model_id}`, // TODO
@@ -499,16 +543,15 @@ export default {
         this.$message.error('json error.')
       }
       this.spinning = true
-      console.log(jsonJson)
-      const formData = new FormData()
-      Object.keys(jsonJson).forEach((key) => {
-      formData.append(key, jsonJson[key])
-      })
+      const formData = this.toFormData(jsonJson)
       axios({
         url: `/ml/model/${this.model_id}`, // TODO
         method: 'post',
         processData: false,
-        data: jsonJson
+        headers: {
+               'Content-Type': 'application/x-www-form-urlencoded'
+            },
+        data: formData
       }).then(res => {
         this.spinning = false
         this.$message.success('Upload successfully.')

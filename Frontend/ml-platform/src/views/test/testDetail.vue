@@ -5,9 +5,9 @@
     <template>
       <!-- 基本信息 -->
       <a-card :bordered="false">
-        <template #extra><a :href='"/model/deploy-test?id="+deploy_id'>Service</a></template>
-        <a :href='"/model/model-test?id="+model_id'>Model</a>
-        <a style="margin-left: 30px" :href=testUrl>Test File</a>
+        <template #extra><a :href="&quot;/model/deploy-test?id=&quot;+deploy_id">Service</a></template>
+        <a :href="&quot;/model/model-test?id=&quot;+model_id">Model</a>
+        <a style="margin-left: 30px" :href="testUrl">Test File</a>
         <br/><br/>
         <!-- TODO: wait backend -->
         <a-button @click="deploy" v-if="testStatus!='run'">Run</a-button>

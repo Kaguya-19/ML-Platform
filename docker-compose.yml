@@ -15,7 +15,7 @@ services:
     volumes:
       - .:/code
     expose:
-      - "8080"
+      - "8001"
     networks:
       - web_network
   nginx:

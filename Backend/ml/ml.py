@@ -268,7 +268,7 @@ class ONNXModel(BaseModel):
     def mining_function(self, y_test):
         algorithm = self.algorithm()
         if algorithm is not None:
-            if algorithm in ('LinearClassifier', 'SVMClassifier', 'TreeEnsembleClassifier'):
+            if algorithm in ('LinearClassifier', 'SVMClassifier', 'TreeEnsembleClassifier','NeuralNetwork'):
                 return FUNCTION_NAME_CLASSIFICATION
             if algorithm in ('LinearRegressor', 'SVMRegressor', 'TreeEnsembleRegressor'):
                 return FUNCTION_NAME_REGRESSION
@@ -349,7 +349,7 @@ class ONNXModel(BaseModel):
                 for i in range(len(output[0])):
                     tmp_sample = {}
                     for j in range(len(output_fields)):
-                        tmp_sample[output_fields[j].name] = output[i][j]
+                        tmp_sample[output_fields[j].name] = output[i][j].tolist()
                     result.append(tmp_sample)
                 return {
                     "result": result,

@@ -31,7 +31,7 @@
             </a-col>
           </a-row>
           <a-row type="flex" style="margin-top: 20px">
-            <a-descriptions title="Description" v-if="modelDescription !== ''" :value="modelDescription">
+            <a-descriptions title="Description" v-if="modelDescription !== ''" :value="modelDescription" style="white-space: pre-wrap;">
               <a-descriptions-item>{{ modelDescription }}</a-descriptions-item>
             </a-descriptions>
           </a-row>
@@ -75,7 +75,7 @@
             :labelCol="{ lg: { span: 7 }, sm: { span: 7 } }"
             :wrapperCol="{ lg: { span: 10 }, sm: { span: 17 } }">
             <a-textarea
-              rows="4"
+              :auto-size="{ minRows: 3, maxRows: 10 }"
               v-decorator="[
                 'description',
                 {
@@ -125,7 +125,7 @@
           <a-col :span="12">
             <a-card title="Input" :bordered="false" v-if="isJSON">
               <template #extra><a @click.stop="toJSON">Form</a></template>
-              <a-textarea rows="6" v-model="jsonStr" />
+              <a-textarea :auto-size="{ minRows: 3, maxRows: 10 }"  v-model="jsonStr" />
               <!-- <a-button @click.prevent="reset">Clear</a-button> -->
               <a-button type="primary" @click.stop="submitJSON" style="margin-left: 16px">Submit</a-button>
             </a-card>
@@ -155,7 +155,7 @@
                   </a-form-item>
                   <a-form-item v-else>
                     <a-textarea
-                      rows="2"
+                      :auto-size="{ minRows: 1, maxRows: 10 }"
                       v-decorator="[data.name, { rules: [{required: true, message: 'Please give input'}]}]"
                     />
                   </a-form-item>
@@ -168,8 +168,8 @@
           </a-col>
           <a-col :span="12">
             <a-card title="Output" :bordered="false">
-              <textarea row="10" style="border: none" :value="testRes">
-              </textarea>
+              <a-textarea :auto-size="{ minRows: 3, maxRows: 10 }" style="border: none" :defaultValue="testRes" v-if="!spinning">
+              </a-textarea>
             </a-card>
           </a-col>
         </a-row>
@@ -449,7 +449,7 @@ export default {
       } else {
         return data
       }
-    };
+    }
 
       return form
     },

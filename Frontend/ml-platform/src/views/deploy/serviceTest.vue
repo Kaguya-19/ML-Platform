@@ -21,8 +21,8 @@
           <a :href="&quot;http://&quot;+baseUrl+&quot;/ml/deploy/&quot;+deploy_id">{{ baseUrl }}/ml/deploy/{{ deploy_id }}</a>
           <a-table :columns="funcColumns" :data-source="funcData">
           </a-table>
-          <a-descriptions title="Description" v-if="serviceDescription !== ''" :value="serviceDescription">
-            <a-descriptions-item>{{ serviceDescription }}</a-descriptions-item>
+          <a-descriptions title="Description" v-if="serviceDescription !== ''" :value="serviceDescription" style="white-space: pre-wrap;">
+            <a-descriptions-item>{{serviceDescription}}</a-descriptions-item>
           </a-descriptions>
         </a-card>
         <!-- TODO -->
@@ -38,7 +38,7 @@
             <a-card title="Input" :bordered="false" v-if="isJSON">
               <template #extra><a @click.stop="toJSON">Form</a></template>
               <a-textarea
-                rows="6"
+                :auto-size="{ minRows: 3, maxRows: 10 }"
                 v-model="jsonStr"
               />
               <!-- <a-button @click.prevent="reset">Clear</a-button> -->
@@ -68,7 +68,7 @@
                   </a-form-item>
                   <a-form-item v-else>
                     <a-textarea
-                      rows="2"
+                      :auto-size="{ minRows: 1, maxRows: 10 }"
                       v-decorator="[data.name, { rules: [{required: true, message: 'Please give input'}]}]"
                     />
                   </a-form-item>
@@ -88,8 +88,8 @@
           </a-col>
           <a-col :span="12">
             <a-card title="Output" :bordered="false">
-              <textarea row="6" style="border: none" :value="testRes">
-              </textarea>
+              <a-textarea :auto-size="{ minRows: 3, maxRows: 10 }" style="border: none" :defaultValue="testRes" v-if="!spinning">
+              </a-textarea>
             </a-card>
           </a-col>
         </a-row>
@@ -99,6 +99,19 @@
           <a-col :span="12">
             <a-card title="Input" :bordered="false">
               <a-form @submit="taskFormSubmit" :form="form">
+                <a-form-item
+                  label="Description"
+                  :labelCol="{ lg: { span: 7 }, sm: { span: 7 } }">
+                  <a-textarea
+                    :auto-size="{ minRows: 3, maxRows: 10 }"
+                    v-decorator="[
+                      'description',
+                      {
+                        rules: [{ required: false }],
+                        initialValue: ''
+                      }
+                    ]" />
+                </a-form-item>
                 <a-form-item label="File">
                   <a-upload
                     :before-upload="testBeforeUpload"
@@ -108,20 +121,6 @@
                   >
                     <a-button> <a-icon type="upload" /> Select File </a-button>
                   </a-upload>
-                </a-form-item>
-                <a-form-item
-                  label="Description"
-                  :labelCol="{ lg: { span: 7 }, sm: { span: 7 } }"
-                  :wrapperCol="{ lg: { span: 10 }, sm: { span: 17 } }">
-                  <a-textarea
-                    rows="4"
-                    v-decorator="[
-                      'description',
-                      {
-                        rules: [{ required: false }],
-                        initialValue: ''
-                      }
-                    ]" />
                 </a-form-item>
                 <a-form-item :wrapper-col="{ span: 14, offset: 15 }">
                   <!-- <a-button @click.prevent="reset">Clear</a-button> -->
@@ -165,17 +164,17 @@
         <a-row type="flex" :gutter="16">
           <a-col :span="12">
             <a-card title="Input" :bordered="false">
+              <a-description>Use python.<br/>Please name input:preprocess_data.input,<br/>name result:preprocess_data.result</a-description>
               <a-form @submit="funcSubmit" :form="form">
                 <a-form-item
                   label="Preprocess Function"
-                  :labelCol="{ lg: { span: 7 }, sm: { span: 7 } }"
-                  :wrapperCol="{ lg: { span: 10 }, sm: { span: 17 } }">
+                  :labelCol="{ lg: { span: 7 }, sm: { span: 7 } }">
                   <a-textarea
-                    rows="4"
+                    :auto-size="{ minRows: 3, maxRows: 20 }"
                     v-decorator="[
                       'func_str',
                       {
-                        rules: [{ required: true }],
+                        rules: [{ required: false }],
                         initialValue: func_str
                       }
                     ]" />
@@ -505,7 +504,12 @@ export default {
     } else if (obj instanceof Array) { // 数组情况
       for (let j = 0, len = obj.length; j < len; j++) {
         const arr = makeFormData(obj[j])
-        data.push({ key: arr.key, value: arr })
+
+        for (let k = 0, l = arr.length; k < l; k++) {
+          const key = form_data ? j + arr[k].key : '[' + j + ']' + arr[k].key
+
+          data.push({ key: key, value: arr[k].value })
+        }
       }
     } else if (typeof obj === 'object') { // object
       for (const j in obj) {
@@ -529,7 +533,7 @@ export default {
       } else {
         return data
       }
-    };
+    }
 
       return form
     },
@@ -734,7 +738,7 @@ export default {
         }
       })
     },
-    formCurl () {
+    formCurl () { // TODO:Promise
       this.form.validateFields((err, values) => {
         if (!err) {
           this.curlStr = `curl --location --request POST 'http://${this.baseUrl}/ml/deploy/${this.deploy_id}'`
@@ -765,12 +769,17 @@ export default {
     },
     taskFormSubmit (e) {
       e.preventDefault()
-      console.log(this.form)
       this.form.validateFields((err, values) => {
         if (!err) {
           this.spinning = true
-          const formData = this.toFormData(values)
+          const formData = new FormData()
+          formData.append('file', values['file'].file)
+          for (var v in values) {
+           if (v !== 'file') {
+            formData.append(v, values[v])
+            }
           formData.append('service_id', this.deploy_id)
+          }
           console.log(values)
           axios({
             url: `/ml/test`,

@@ -25,7 +25,7 @@ def preprocess_image(img_to_preprocess):
 # preprocess_result['result'] = preprocess_image(image) ## 此句必须添加
 
 import numpy as np
-import torch
+# import torch
 import cv2
 
 def defualt_process(img):
@@ -33,9 +33,9 @@ def defualt_process(img):
     img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
     img = img / 255
     img = np.ascontiguousarray(img)
-    img = torch.from_numpy(img)
-    img = img.float()
-    img = img.unsqueeze(0)
-    if img.ndimension() == 3:
-        img = img.unsqueeze(0)
+    # img = torch.from_numpy(img)
+    img = img.astype(np.float)
+    img = img.reshape(1,1,28,28)
+    # if img.ndimension() == 3:
+    #     img = img.unsqueeze(0)
     return img

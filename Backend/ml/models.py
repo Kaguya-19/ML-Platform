@@ -31,7 +31,7 @@ class Service_info(models.Model):
 
 # 一个service->多个test，或者test不对应service
 class Test_info(models.Model):
-    tested_file = models.FileField(upload_to='test_files_info',null=True,blank=True)
+    tested_file = models.FileField(upload_to='test_files_info')
     # 备注信息
     description = models.TextField(max_length=100,default= 'default')
 

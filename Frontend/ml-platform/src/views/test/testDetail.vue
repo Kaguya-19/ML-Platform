@@ -5,7 +5,7 @@
     <template>
       <!-- 基本信息 -->
       <a-card :bordered="false">
-        <template #extra><a :href="&quot;/model/deploy-test?id=&quot;+deploy_id">Service</a></template>
+        <template #extra><a :href="&quot;/deploy/deploy-test?id=&quot;+service_id">Service</a></template>
         <a :href="&quot;/model/model-test?id=&quot;+model_id">Model</a>
         <a style="margin-left: 30px" :href="&quot;http://&quot;+testUrl">Test File</a>
         <br/><br/>
@@ -34,12 +34,12 @@
           </a-col>
           <a-col flex="auto">
             <a-descriptions title="Result"></a-descriptions>
-            <textarea  title="Result" row="6" style="border: none" :value="testRes">
-              </textarea>
+            <a-textarea  title="Result" :auto-size="{ minRows: 3, maxRows: 20 }" style="border: none" :defaultValue="testRes">
+              </a-textarea>
           </a-col>
         </a-row>
         <a-row type="flex" style="margin-top: 20px">
-          <a-descriptions title="Description" v-if="testDescription!==''" :value="testDescription">
+          <a-descriptions title="Description" v-if="testDescription!==''" :value="testDescription" style="white-space: pre-wrap;">
             <a-descriptions-item>{{ testDescription }}</a-descriptions-item>
           </a-descriptions>
         </a-row>

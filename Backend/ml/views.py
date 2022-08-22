@@ -3,6 +3,7 @@ import threading
 from threading import local
 from tkinter.filedialog import test
 from turtle import Turtle
+from io import BytesIO
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.forms.models import model_to_dict
@@ -17,7 +18,7 @@ from .pre_process_example import defualt_process
 BASE_URL = '127.0.0.1:8000'
 import socket
 import traceback
-
+import base64
 
 preprocess_data=local() 
 
@@ -261,6 +262,7 @@ def fast_test(request,id,type='model'):
     model_type = model.model_type
     input_info = model.input
     # TODO:base64处理
+    global preprocess_data
     x_test = []
     test_data = request.POST
     file_data = request.FILES
@@ -273,15 +275,34 @@ def fast_test(request,id,type='model'):
                 if keyi in key:
                     in_txt = True
                     value = test_data[key]
-                    if isinstance(value,list):
-                        x_test += value
-                    else:
-                        x_test.append(value)
+                    if isinstance(value,str) and value.startswith('data:'):# base 64 TODO:z                        file = BytesIO(base64.b64decode(value))
+                        if type == 'service' and service.func_str != '':
+                            preprocess_data.input = file
+                            preprocess_data.result = {}
+                            func_str = service.func_str
+                            exec(func_str)
+                            # preprocessed_res = preprocess_result['result']
+                            x_test.append(preprocess_data.result)
+                        else:
+                            if value.startswith('data:image'):
+                                x_test = cv2.imdecode(np.frombuffer(file.getvalue(),np.uint8), cv2.IMREAD_COLOR)
+                                x_test = defualt_process(x_test)
+                                #process img
+                                break
+                            elif value.startswith('data:application/octet-stream'):
+                                while True:
+                                    txtstr = file.encode('utf-8')
+                                    import re
+                                    txtlist = re.split(r'\s|,',txtstr)
+                                    x_test.append(txtlist)
+                        if isinstance(value,list):
+                            x_test += value
+                        else:
+                            x_test.append(value)
             for key in file_data:
                 if keyi in key:
                     file = file_data[key]
                     if type == 'service' and service.func_str != '':
-                        global preprocess_data
                         preprocess_data.input = file.file
                         preprocess_data.result = {}
                         func_str = service.func_str
@@ -655,7 +676,8 @@ def test_change(request, test_id):
         test.recent_modified_time = timezone.now()
         test.description = description
         test.status = status
-        test.save()  
+        if test.status != 'finished' and test.status != 'interrupted':
+            test.save()  
     except:
         res = {"errmsg":"修改测试文件失败"}
         willContinue = False

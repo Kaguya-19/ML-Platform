@@ -87,7 +87,7 @@
             </a-card>
           </a-col>
           <a-col :span="12">
-            <a-card title="Output" :bordered="false">
+            <a-card title="Output" :bordered="false" v-if="page=='test'">
               <a-textarea :auto-size="{ minRows: 3, maxRows: 10 }" style="border: none" :defaultValue="testRes" v-if="!spinning">
               </a-textarea>
             </a-card>
@@ -188,7 +188,7 @@
             </a-card>
           </a-col>
           <a-col :span="12">
-           <a-card title="Example" :bordered="false">
+            <a-card title="Example" :bordered="false" v-if="!spinning">
               <a-textarea :auto-size="{ minRows: 3, maxRows: 10 }" style="border: none" :defaultValue="func_ex">
               </a-textarea>
             </a-card>
@@ -334,6 +334,7 @@ export default {
     return {
       deploy_id: this.$route.query.id,
       model_id: 0,
+      serviceName: '',
       serviceStatus: '',
       serviceDescription: '',
       page: 'info',
@@ -350,7 +351,7 @@ export default {
       form: this.$form.createForm(this),
       testRes: 'Here is result!',
       func_str: '',
-      func_ex: 'import numpy as np\r\nimport cv2\r\n\r\ndef defualt_process(img):\r\n    img = cv2.imdecode(np.frombuffer(img.read(),np.uint8), cv2.IMREAD_COLOR)\r\n    img = cv2.resize(img, (28, 28))\r\n    img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)\r\n    img = img / 255\r\n    img = np.ascontiguousarray(img)\r\n    img = img.astype(np.float)\r\n    img = img.reshape(1,28,28)\r\n    return np.array(img).astype(np.float32)\r\n\r\npreprocess_data.result = defualt_process(preprocess_data.input',
+      func_ex: 'import numpy as np\r\nimport cv2\r\n\r\ndef defualt_process(img):\r\n    img = cv2.imdecode(np.frombuffer(img.read(),np.uint8), cv2.IMREAD_COLOR)\r\n    img = cv2.resize(img, (28, 28))\r\n    img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)\r\n    img = img / 255\r\n    img = np.ascontiguousarray(img)\r\n    img = img.astype(np.float)\r\n    img = img.reshape(1,28,28)\r\n    return np.array(img).astype(np.float32)\r\n\r\npreprocess_data.result = defualt_process(preprocess_data.input)',
 
       curlStr: '',
       spinning: false,
@@ -746,34 +747,43 @@ export default {
         }
       })
     },
-    formCurl () { // TODO:Promise
+    toBase64 (file) {
+      const reader = new FileReader()
+      reader.readAsDataURL(file)
+      return new Promise(
+      resolve => (reader.onloadend = () => resolve(reader.result))
+      )
+    },
+    async formCurl () {
+    async function t (values, v, thi) {
+          try {
+            const res = await thi.toBase64(values[v].file)
+            thi.curlStr += ` \\\n--form '${v}="${res}"'`
+            } catch (err) {
+            console.log(err)
+            thi.curlStr += ` \\\n--form '${v}="${values[v]}"'`
+          }
+          }
+    async function vva (values, thi) {
+          thi.curlStr = `curl --location --request POST 'http://${thi.baseUrl}/ml/deploy/${thi.deploy_id}'`
+          for (var v in values) {
+            await t(values, v, thi)
+          }
+          await thi.$confirm({
+            title: 'CURL',
+            content: thi.curlStr,
+            cancelText: 'Copy to clipborad',
+            onOk () {},
+            onCancel () {
+              thi.$copyText(thi.curlStr)
+            }
+          })
+        }
       this.form.validateFields((err, values) => {
         if (!err) {
-          this.curlStr = `curl --location --request POST 'http://${this.baseUrl}/ml/deploy/${this.deploy_id}'`
-          for (var v in values) {
-           try {
-            const reader = new FileReader()
-            reader.readAsDataURL(values[v].file)
-            reader.onload = () => {
-            this.curlStr += ` \\\n--form '${v}="${reader.result}"'`
-            }
-           } catch (err) {
-            console.log(err)
-            this.curlStr += ` \\\n--form '${v}="${values[v]}"'`
-           }
-          }
+          vva(values, this)
         }
-      })
-      const thi = this
-      this.$confirm({
-        title: 'CURL',
-        content: this.curlStr,
-        cancelText: 'Copy to clipborad',
-        onOk () {},
-        onCancel () {
-          thi.$copyText(thi.curlStr)
-        }
-      })
+        })
     },
     taskFormSubmit (e) {
       e.preventDefault()

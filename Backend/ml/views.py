@@ -18,6 +18,7 @@ BASE_URL = '127.0.0.1:8000'
 import socket
 import traceback
 import re
+import cv2
 
 
 preprocess_data=local() 
@@ -481,10 +482,8 @@ def start_test(test_file_id , service_id):
                                         x_test.append(number_tmp_data)
                                 zfile.close()
         elif '.jpg' in test_file.name:
-            content = np.load(test_file.path)
-            image = np.asarray(bytearray(content), dtype='uint8')
-            image = cv2.imdecode(image, cv2.IMREAD_COLOR)
-            image = defualt_process(image)
+            content = cv2.imread(test_file.path)
+            image = defualt_process(content)
             x_test.append(image[0])
             # cv2.imshow('image', image)
         elif '.txt' in test_file.name:

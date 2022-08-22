@@ -27,7 +27,7 @@
             <a-statistic title="Recent Modified Time" :value="recent_modified_time" />
           </a-col>
         </a-row>
-        <a-row type="flex" v-if="testStatus">
+        <a-row type="flex" v-if="testStatus!='run'&&testStatus!='paused'">
           <a-col flex="auto">
             <a-statistic title="Endtime" :value="end_time" />
           </a-col>

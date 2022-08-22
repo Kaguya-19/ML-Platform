@@ -270,13 +270,11 @@ def fast_test(request,id,type='model'):
     input_name = [x["name"] for x in input_info]
     try:
         for keyi in input_name:
-            in_txt = False
             for key in test_data:
                 if keyi in key:
-                    in_txt = True
                     value = test_data[key]
                     if isinstance(value,str) and value.startswith('data:'):# base 64                        
-                        file = base64.b64decode(value)
+                        file = base64.b64decode(','+value.split(',',1)[1])
                         if type == 'service' and service.func_str != '':
                             preprocess_data.input = file
                             preprocess_data.result = {}
@@ -296,34 +294,33 @@ def fast_test(request,id,type='model'):
                                     import re
                                     txtlist = re.split(r'\s|,',txtstr)
                                     x_test.append(txtlist)
-                        if isinstance(value,list):
-                            x_test += value
-                        else:
-                            x_test.append(value)
-            if not in_txt:
-                for key in file_data:
-                    if keyi in key:
-                        file = file_data[key]
-                        if type == 'service' and service.func_str != '':
-                            global preprocess_data
-                            preprocess_data.input = file.file
-                            preprocess_data.result = {}
-                            func_str = service.func_str
-                            exec(func_str)
-                            # preprocessed_res = preprocess_result['result']
-                            x_test.append(preprocess_data.result)
-                        else:
-                            if '.jpg' in file.name:
-                                x_test = cv2.imdecode(np.frombuffer(file.file.read(),np.uint8), cv2.IMREAD_COLOR)
-                                x_test = defualt_process(x_test)
-                                #process img
-                                break
-                            elif '.csv' in file.name or '.txt' in file.name:
-                                txtstr = file.file.read().decode('utf-8')
-                                import re
-                                txtlist = re.split(r'[\s,;]',txtstr)
-                                x_test.append([float(x) for x in txtlist])
+                    elif isinstance(value,list):
+                        x_test += value
+                    else:
+                        x_test.append(value)
+            for key in file_data:
+                if keyi in key:
+                    file = file_data[key]
+                    if type == 'service' and service.func_str != '':
+                        preprocess_data.input = file.file
+                        preprocess_data.result = {}
+                        func_str = service.func_str
+                        exec(func_str)
+                        # preprocessed_res = preprocess_result['result']
+                        x_test.append(preprocess_data.result)
+                    else:
+                        if '.jpg' in file.name:
+                            x_test = cv2.imdecode(np.frombuffer(file.file.read(),np.uint8), cv2.IMREAD_COLOR)
+                            x_test = defualt_process(x_test)
+                            #process img
+                            break
+                        elif '.csv' in file.name or '.txt' in file.name:
+                            txtstr = file.file.read().decode('utf-8')
+                            import re
+                            txtlist = re.split(r'[\s,;]',txtstr)
+                            x_test.append([float(x) for x in txtlist])
         x_test = np.array(x_test).astype(np.float32)
+        print(x_test.shape)
         return quick_predict(model_path,type = model_type,x_test = x_test)
     except Exception as e:
         return {"stderr":traceback.format_exc()}

@@ -9,9 +9,9 @@
         <a :href="&quot;/model/model-test?id=&quot;+model_id">Model</a>
         <a style="margin-left: 30px" :href="&quot;http://&quot;+testUrl">Test File</a>
         <br/><br/>
-        <a-button @click="deploy" v-if="testStatus=='paused'">Run</a-button>
+        // <a-button @click="deploy" v-if="testStatus=='paused'">Run</a-button>
         <a-button @click="undeploy" v-if="testStatus=='run'">Stop</a-button>
-        <a-button @click="pause" v-if="testStatus=='run'">Pause</a-button>
+        <!-- <a-button @click="pause" v-if="testStatus=='run'">Pause</a-button> -->
 
         <a-row type="flex">
           <a-col flex="auto">
@@ -89,7 +89,7 @@ export default {
             this.recent_modified_time = res.data.recent_modified_time
             this.end_time = res.data.end_time
             this.testUrl = res.data.tested_file
-            if (this.testStatus === 'finished' || this.testStatus === 'interrupted') {
+            if ((this.testStatus === 'finished') || (this.testStatus === 'interrupted')) {
               this.testRes = JSON.stringify(res.data.result)
             }
             }).catch(err => {
@@ -162,38 +162,38 @@ export default {
             })
         }
       })
-    },
-    pause () {
-      const thi = this
-      this.$confirm({
-        title: 'Warning',
-        content: `Pause?`,
-        okType: 'danger',
-        onOk () {
-          const formData = new FormData()
-          formData.append('status', 'paused')
-          axios({
-            url: `/ml/test/${thi.test_id}`,
-            method: 'put',
-            processData: false,
-            headers: {
-               'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            data: formData
-            }).then(res => {
-                thi.$message.success('Pause successfully.')
-                thi.$router.go(0)
-              }).catch(err => {
-              console.log(err)
-              try {
-                thi.$message.error(err.response.data.errmsg)
-              } catch (err) {
-                thi.$message.error('pause failed.')
-                }
-            })
-        }
-      })
     }
+    // pause () {
+    //   const thi = this
+    //   this.$confirm({
+    //     title: 'Warning',
+    //     content: `Pause?`,
+    //     okType: 'danger',
+    //     onOk () {
+    //       const formData = new FormData()
+    //       formData.append('status', 'paused')
+    //       axios({
+    //         url: `/ml/test/${thi.test_id}`,
+    //         method: 'put',
+    //         processData: false,
+    //         headers: {
+    //            'Content-Type': 'application/x-www-form-urlencoded'
+    //         },
+    //         data: formData
+    //         }).then(res => {
+    //             thi.$message.success('Pause successfully.')
+    //             thi.$router.go(0)
+    //           }).catch(err => {
+    //           console.log(err)
+    //           try {
+    //             thi.$message.error(err.response.data.errmsg)
+    //           } catch (err) {
+    //             thi.$message.error('pause failed.')
+    //             }
+    //         })
+    //     }
+    //   })
+    // }
   }
 }
 </script>

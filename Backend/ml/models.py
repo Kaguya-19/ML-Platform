@@ -36,7 +36,7 @@ class Test_info(models.Model):
     description = models.TextField(max_length=100,default= 'default')
 
     thread_ID = models.IntegerField(default=-1)
-    status= models.CharField(blank=True,null=True,default='run',max_length=15) #run paused finished interrupted
+    status= models.CharField(blank=True,null=True,default='run',max_length=15) #run finished interrupted
     result = models.JSONField(blank=True,null=True)
 
     add_time = models.DateTimeField(auto_now_add=True)

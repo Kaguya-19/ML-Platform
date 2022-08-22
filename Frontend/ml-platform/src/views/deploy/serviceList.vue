@@ -58,16 +58,16 @@
               </a-form-item>
             </a-col>
           </template> -->
-            <!-- <a-col :md="!advanced && 8 || 24" :sm="24">
+            <a-col :md="!advanced && 8 || 24" :sm="24">
               <span class="table-page-search-submitButtons" :style="advanced && { float: 'right', overflow: 'hidden' } || {} ">
                 <a-button type="primary" @click="filter">Query</a-button>
                 <a-button style="margin-left: 8px" @click="resetForm">Reset</a-button>
-                <a @click="toggleAdvanced" style="margin-left: 8px">
+                <!-- <a @click="toggleAdvanced" style="margin-left: 8px">
                   {{ advanced ? 'Up' : 'Down' }}
                   <a-icon :type="advanced ? 'up' : 'down'"/>
-                </a>
+                </a> -->
               </span>
-            </a-col> -->
+            </a-col>
           </a-row>
         </a-form>
       </div>

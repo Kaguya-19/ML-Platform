@@ -137,9 +137,9 @@ def model_all(request):
         model_type = request.GET.get('model_type','')
         
         if model_type != '':
-            models = Model_info.objects.filter(model_type=model_type).order_by(-'id').values('name','model_type','id','add_time','description')
+            models = Model_info.objects.filter(model_type=model_type).order_by('-id').values('name','model_type','id','add_time','description')
         else:
-            models = Model_info.objects.order_by(-'id').values('name','model_type','id','add_time','description')
+            models = Model_info.objects.order_by('-id').values('name','model_type','id','add_time','description')
         if text != '':
             models = textFilter({"name":text}, queryset=models).qs|textFilter({"description":text}, queryset=models).qs
         
@@ -277,8 +277,8 @@ def fast_test(request,id,type='model'):
                         x_test += value
                     else:
                         x_test.append(value)
-            if not in_txt:
-                for key in file_data:
+            for key in file_data:
+                if keyi in key:
                     file = file_data[key]
                     if type == 'service' and service.func_str != '':
                         global preprocess_data
@@ -559,13 +559,13 @@ def test_all(request):
         service = request.GET.get('service',0)
 
         if status != '':
-            tests = Test_info.objects.filter(status=status).order_by(-'id').values('description','status','id','add_time','recent_modified_time')
+            tests = Test_info.objects.filter(status=status).order_by('-id').values('description','status','id','add_time','recent_modified_time')
         else:
-            tests = Test_info.objects.order_by(-'id').values('description','status','id','add_time','recent_modified_time')
+            tests = Test_info.objects.order_by('-id').values('description','status','id','add_time','recent_modified_time')
         if description != '':
             tests = textFilter({"description":description}, queryset=tests).qs
         if service != 0:
-            tests=tests.filter(service=service).order_by(-'id')
+            tests=tests.filter(service=service).order_by('-id')
         paginator = Paginator(tests, pageSize)
         se = list(paginator.page(pageNo))
         for inf in se:
@@ -723,18 +723,18 @@ def service_all(request):
         status = request.GET.get('status',-1)
 
         if model_id != -1:
-            services = Service_info.objects.filter(mod = model_id,).order_by(-'id').values('name','description','id','add_time',
+            services = Service_info.objects.filter(mod = model_id,).order_by('-id').values('name','description','id','add_time',
                                                                         'recent_modified_time','status','average_use_time','use_times')
             print(services)
         else:
             # 不进行模型的筛选
-            services = Service_info.objects.order_by(-'id').values('name','description','id','add_time',
+            services = Service_info.objects.order_by('-id').values('name','description','id','add_time',
                                                                 'recent_modified_time','status','average_use_time','use_times')
 
         if text != '':
             services = textFilter({"name":text}, queryset=services).qs|textFilter({"description":text}, queryset=services).qs
         if status != -1:
-            services = services.filter(status=status).order_by(-'id')
+            services = services.filter(status=status).order_by('-id')
         
         paginator = Paginator(services, pageSize)
         se = list(paginator.page(pageNo))

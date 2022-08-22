@@ -17,6 +17,7 @@ from .pre_process_example import defualt_process
 BASE_URL = '127.0.0.1:8000'
 import socket
 import traceback
+import re
 
 
 preprocess_data=local() 
@@ -266,7 +267,6 @@ def fast_test(request,id,type='model'):
     file_data = request.FILES
     input_name = [x["name"] for x in input_info]
     try:
-        print(test_data)
         for keyi in input_name:
             in_txt = False
             for key in test_data:
@@ -277,32 +277,30 @@ def fast_test(request,id,type='model'):
                         x_test += value
                     else:
                         x_test.append(value)
-            for key in file_data:
-                if keyi in key:
-                    file = file_data[key]
-                    if type == 'service' and service.func_str != '':
-                        global preprocess_data
-                        preprocess_data.input = file.file
-                        preprocess_data.result = {}
-                        func_str = service.func_str
-                        exec(func_str)
-                        # preprocessed_res = preprocess_result['result']
-                        x_test.append(preprocess_data.result)
-                    else:
-                        if '.jpg' in file.name:
-                            print(file.file)
-                            x_test = cv2.imdecode(np.frombuffer(file.file.read(),np.uint8), cv2.IMREAD_COLOR)
-                            x_test = defualt_process(x_test)
-                            #process img
-                            break
-                        elif '.csv' in file.name or '.txt' in file.name:
-                            while True:
-                                txtstr = file.file.encode('utf-8')
+            if not in_txt:
+                for key in file_data:
+                    if keyi in key:
+                        file = file_data[key]
+                        if type == 'service' and service.func_str != '':
+                            global preprocess_data
+                            preprocess_data.input = file.file
+                            preprocess_data.result = {}
+                            func_str = service.func_str
+                            exec(func_str)
+                            # preprocessed_res = preprocess_result['result']
+                            x_test.append(preprocess_data.result)
+                        else:
+                            if '.jpg' in file.name:
+                                x_test = cv2.imdecode(np.frombuffer(file.file.read(),np.uint8), cv2.IMREAD_COLOR)
+                                x_test = defualt_process(x_test)
+                                #process img
+                                break
+                            elif '.csv' in file.name or '.txt' in file.name:
+                                txtstr = file.file.read().decode('utf-8')
                                 import re
-                                txtlist = re.split(r'\s|,',txtstr)
-                                x_test.append(txtlist)
+                                txtlist = re.split(r'[\s,;]',txtstr)
+                                x_test.append([float(x) for x in txtlist])
         x_test = np.array(x_test).astype(np.float32)
-        print("x_test", x_test.shape)
         return quick_predict(model_path,type = model_type,x_test = x_test)
     except Exception as e:
         return {"stderr":traceback.format_exc()}
@@ -451,7 +449,7 @@ def start_test(test_file_id , service_id):
                                     if not lines:  # 若该行为空
                                         break  # 喀嚓
                                     else:
-                                        this_lines = lines.split()
+                                        this_lines = re.split(r"\s|,|;",lines)
                                         number_this_lines = [float(x) for x in this_lines]
                                         if len(number_this_lines) != np.prod(input_shape):
                                             res = {"errmsg":"输入的文本行数据量不适配此模型"}
@@ -460,7 +458,50 @@ def start_test(test_file_id , service_id):
                                             test_task.save()
                                             return
                                         x_test.append(list(np.array(number_this_lines).reshape(tuple(input_shape))))
-                zfile.close()
+                        elif '.csv' in test_file.name:
+                            with open(test_file.path, mode='r', encoding='utf-8') as f:
+                                if service.func_str != '': 
+                                    preprocess_data.input = f
+                                    preprocess_data.result = {}
+                                    exec(func_str)
+                                    # preprocessed_res = preprocess_result['result']
+                                    x_test.append(preprocess_data.result)
+                                else:
+                                    input_file_string = f.read()
+                                    input_file_list = input_file_string.split('\n')
+                                    # 发现有时候最后会多一行，去掉
+                                    if input_file_list[-1] == "":
+                                        input_file_list.pop()
+                                    for line in input_file_list:
+                                        # 使用zip将两组数据打包成字典
+                                        tmp_data = line.split(',')
+                                        number_tmp_data = [float(x) for x in tmp_data]
+                                        if len(number_tmp_data) != np.prod(input_shape):
+                                            continue
+                                        x_test.append(number_tmp_data)
+                                zfile.close()
+        elif '.jpg' in test_file.name:
+            content = np.load(test_file.path)
+            image = np.asarray(bytearray(content), dtype='uint8')
+            image = cv2.imdecode(image, cv2.IMREAD_COLOR)
+            image = defualt_process(image)
+            x_test.append(image[0])
+            # cv2.imshow('image', image)
+        elif '.txt' in test_file.name:
+            with open(test_file.path, mode='r', encoding='utf-8') as f:  # 打开文件，将其值赋予file_to_read
+                input_file_string = f.read()
+                input_file_list = input_file_string.split('\n')
+                # 发现有时候最后会多一行，去掉
+                if input_file_list[-1] == "":
+                    input_file_list.pop()
+                for line in input_file_list:
+                    # 使用zip将两组数据打包成字典
+                    tmp_data = re.split(r"\s|,|;",line)
+                    number_tmp_data = [float(x) for x in tmp_data]
+                    if len(number_tmp_data) != np.prod(input_shape):
+                        continue
+                    x_test.append(number_tmp_data)
+                    
         elif '.csv' in test_file.name:
             with open(test_file.path, mode='r', encoding='utf-8') as f:
                 if service.func_str != '': 
@@ -489,7 +530,6 @@ def start_test(test_file_id , service_id):
             test_task.save()
             return
         x_test = np.array(x_test).astype(np.float32)
-        print(x_test)
         res = batch_predict(path = tested_model_path, type = tested_model_type,x_test = x_test)
     except:
         import traceback

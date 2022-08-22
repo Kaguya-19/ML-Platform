@@ -5,6 +5,12 @@ import os
 from traceback import format_exc
 import pandas as pd
 import numpy as np
+from sklearn.metrics import accuracy_score,explained_variance_score
+import onnx
+import onnxruntime as rt
+from pyspark.ml import PipelineModel
+import tensorflow as tf
+from pypmml import Model
 
 FUNCTION_NAME_CLASSIFICATION = 'classification'
 FUNCTION_NAME_REGRESSION = 'regression'
@@ -126,14 +132,13 @@ class BaseModel(object):
             function_name = input_function_name if input_function_name else wrapped_model.mining_function(
                 y_test)
             if function_name == FUNCTION_NAME_CLASSIFICATION:
-                from sklearn.metrics import accuracy_score
+
                 y_pred = wrapped_model.model.predict(x_test)
                 accuracy = accuracy_score(y_test, y_pred)
                 return {
                     'accuracy': accuracy
                 }
             elif function_name == FUNCTION_NAME_REGRESSION:
-                from sklearn.metrics import explained_variance_score
                 y_pred = wrapped_model.model.predict(x_test)
                 explained_variance = explained_variance_score(y_test, y_pred)
                 return {
@@ -240,7 +245,7 @@ class ONNXModel(BaseModel):
 
     def is_support(self):
         try:
-            import onnx
+
 
             if isinstance(self.model, onnx.ModelProto):
                 self.onnx_model = self.model
@@ -449,7 +454,7 @@ class ONNXModel(BaseModel):
 
     def _get_inference_session(self):
         if self.sess is None:
-            import onnxruntime as rt
+
             self.sess = rt.InferenceSession(
                 self.onnx_model.SerializeToString())
         return self.sess
@@ -969,7 +974,6 @@ class SparkModel(BaseModel):
         return result
 
     def get_label_col(self):
-        from pyspark.ml import PipelineModel
         if isinstance(self.model, PipelineModel):
             stages = self.model.stages
             label_col = None
@@ -1001,7 +1005,7 @@ class SparkModel(BaseModel):
             return label_col
 
     def get_prediction_col(self):
-        from pyspark.ml import PipelineModel
+
         if isinstance(self.model, PipelineModel):
             stages = self.model.stages
             try:

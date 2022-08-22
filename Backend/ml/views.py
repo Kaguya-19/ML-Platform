@@ -3,7 +3,6 @@ import threading
 from threading import local
 from tkinter.filedialog import test
 from turtle import Turtle
-from io import BytesIO
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.forms.models import model_to_dict
@@ -276,7 +275,8 @@ def fast_test(request,id,type='model'):
                 if keyi in key:
                     in_txt = True
                     value = test_data[key]
-                    if isinstance(value,str) and value.startswith('data:'):# base 64 TODO:z                        file = BytesIO(base64.b64decode(value))
+                    if isinstance(value,str) and value.startswith('data:'):# base 64                        
+                        file = base64.b64decode(value)
                         if type == 'service' and service.func_str != '':
                             preprocess_data.input = file
                             preprocess_data.result = {}
@@ -286,7 +286,7 @@ def fast_test(request,id,type='model'):
                             x_test.append(preprocess_data.result)
                         else:
                             if value.startswith('data:image'):
-                                x_test = cv2.imdecode(np.frombuffer(file.getvalue(),np.uint8), cv2.IMREAD_COLOR)
+                                x_test = cv2.imdecode(np.frombuffer(file,np.uint8), cv2.IMREAD_COLOR)
                                 x_test = defualt_process(x_test)
                                 #process img
                                 break

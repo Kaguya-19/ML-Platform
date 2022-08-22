@@ -137,9 +137,9 @@ def model_all(request):
         model_type = request.GET.get('model_type','')
         
         if model_type != '':
-            models = Model_info.objects.filter(model_type=model_type).order_by('id').values('name','model_type','id','add_time','description')
+            models = Model_info.objects.filter(model_type=model_type).order_by(-'id').values('name','model_type','id','add_time','description')
         else:
-            models = Model_info.objects.order_by('id').values('name','model_type','id','add_time','description')
+            models = Model_info.objects.order_by(-'id').values('name','model_type','id','add_time','description')
         if text != '':
             models = textFilter({"name":text}, queryset=models).qs|textFilter({"description":text}, queryset=models).qs
         
@@ -260,7 +260,6 @@ def fast_test(request,id,type='model'):
     model_path = model.file.path
     model_type = model.model_type
     input_info = model.input
-    # TODO: 预处理
     # TODO:base64处理
     x_test = []
     test_data = request.POST
@@ -285,7 +284,7 @@ def fast_test(request,id,type='model'):
                         global preprocess_data
                         preprocess_data.input = file.file
                         preprocess_data.result = {}
-                        func_str = service.func_str  # TODO:具体互动细节（获取脚本）
+                        func_str = service.func_str
                         exec(func_str)
                         # preprocessed_res = preprocess_result['result']
                         x_test.append(preprocess_data.result)
@@ -401,7 +400,6 @@ def start_test(test_file_id , service_id):
     test_task =  Test_info.objects.get(id=test_file_id)
     test_file = test_task.tested_file
     test_task.threadID = threading.currentThread().ident
-    test_task.is_finished = False
     res = {}
     test_task.result = res
     test_task.save()
@@ -424,6 +422,7 @@ def start_test(test_file_id , service_id):
         x_test=[]
         if service.func_str != '':
             global preprocess_data
+            func_str = service.func_str 
         if '.zip' in test_file.name:
             with zipfile.ZipFile(test_file.path, mode='r') as zfile:  # 只读方式打开压缩包
                 for name in zfile.namelist():  # 获取zip文档内所有文件的名称列表
@@ -432,7 +431,6 @@ def start_test(test_file_id , service_id):
                             print('fuck1') 
                             preprocess_data.input = file_to_read
                             preprocess_data.result = {}
-                            func_str = service.func_str  # TODO:具体互动细节（获取脚本）
                             exec(func_str)
                             # preprocessed_res = preprocess_result['result']
                             x_test.append(preprocess_data.result)
@@ -446,7 +444,7 @@ def start_test(test_file_id , service_id):
                                 if image.shape != tuple(input_shape):
                                     res = {"errmsg":"输入图片不适配此模型"}
                                     test_task.result = res
-                                    test_task.is_finished = True
+                                    test_task.status = 'interrupted'
                                     test_task.save()
                                     return
                                 # cv2.imshow('image', image)
@@ -462,7 +460,7 @@ def start_test(test_file_id , service_id):
                                         if len(number_this_lines) != np.prod(input_shape):
                                             res = {"errmsg":"输入的文本行数据量不适配此模型"}
                                             test_task.result = res
-                                            test_task.is_finished = True
+                                            test_task.status = 'interrupted'
                                             test_task.save()
                                             return
                                         x_test.append(list(np.array(number_this_lines).reshape(tuple(input_shape))))
@@ -472,7 +470,6 @@ def start_test(test_file_id , service_id):
                 if service.func_str != '': 
                     preprocess_data.input = f
                     preprocess_data.result = {}
-                    func_str = service.func_str  # TODO:具体互动细节（获取脚本）
                     exec(func_str)
                     # preprocessed_res = preprocess_result['result']
                     x_test.append(preprocess_data.result)
@@ -492,7 +489,7 @@ def start_test(test_file_id , service_id):
         else:
             res = {"errmsg":"不支持处理该类型文件"}
             test_task.result = res
-            test_task.is_finished = True
+            test_task.status = 'interrupted'
             test_task.save()
             return
         x_test = np.array(x_test).astype(np.float32)
@@ -502,11 +499,11 @@ def start_test(test_file_id , service_id):
         import traceback
         res = {"errmsg":traceback.format_exc()}
         test_task.result = res
-        test_task.is_finished = True
+        test_task.status = 'interrupted'
         test_task.save()
         return
     test_task.result = res
-    test_task.is_finished = True
+    test_task.status = 'finished'
     test_task.recent_modified_time = timezone.now()
     test_task.end_time = timezone.now()
     test_task.save()
@@ -558,17 +555,17 @@ def test_all(request):
         pageNo = int(request.GET.get('pageNo',1))
         pageSize = int(request.GET.get('pageSize',10))
         description = request.GET.get('name','')
-        is_finished = request.GET.get('is_finished','')
+        status = request.GET.get('status','')
         service = request.GET.get('service',0)
 
-        if is_finished != '':
-            tests = Test_info.objects.filter(is_finished=is_finished).order_by('id').values('description','is_finished','id','add_time','recent_modified_time')
+        if status != '':
+            tests = Test_info.objects.filter(status=status).order_by(-'id').values('description','status','id','add_time','recent_modified_time')
         else:
-            tests = Test_info.objects.order_by('id').values('description','is_finished','id','add_time','recent_modified_time')
+            tests = Test_info.objects.order_by(-'id').values('description','status','id','add_time','recent_modified_time')
         if description != '':
             tests = textFilter({"description":description}, queryset=tests).qs
         if service != 0:
-            tests=tests.filter(service=service).order_by('id')
+            tests=tests.filter(service=service).order_by(-'id')
         paginator = Paginator(tests, pageSize)
         se = list(paginator.page(pageNo))
         for inf in se:
@@ -650,21 +647,21 @@ def test_change(request, test_id):
     try:
         test = Test_info.objects.get(id=test_id)
         description = request.PUT.get('description')
-        is_finished = request.PUT.get('is_finished',test.is_finished)
-
+        status = request.PUT.get('status',test.status)
+        # TODO 更改状态
         # 此处不能改文件
         # if 'tested_file' in request.FILES:
         #     test.file = request.FILES['tested_file']
         test.recent_modified_time = timezone.now()
         test.description = description
-        test.is_finished = is_finished
+        test.status = status
         test.save()  
     except:
         res = {"errmsg":"修改测试文件失败"}
         willContinue = False
     
     res['description'] = description
-    res['is_finished'] = test.is_finished
+    res['status'] = test.status
     resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
     if willContinue:
         resp.status_code = 200
@@ -726,18 +723,18 @@ def service_all(request):
         status = request.GET.get('status',-1)
 
         if model_id != -1:
-            services = Service_info.objects.filter(mod = model_id,).order_by('id').values('name','description','id','add_time',
+            services = Service_info.objects.filter(mod = model_id,).order_by(-'id').values('name','description','id','add_time',
                                                                         'recent_modified_time','status','average_use_time','use_times')
             print(services)
         else:
             # 不进行模型的筛选
-            services = Service_info.objects.order_by('id').values('name','description','id','add_time',
+            services = Service_info.objects.order_by(-'id').values('name','description','id','add_time',
                                                                 'recent_modified_time','status','average_use_time','use_times')
 
         if text != '':
             services = textFilter({"name":text}, queryset=services).qs|textFilter({"description":text}, queryset=services).qs
         if status != -1:
-            services = services.filter(status=status).order_by('id')
+            services = services.filter(status=status).order_by(-'id')
         
         paginator = Paginator(services, pageSize)
         se = list(paginator.page(pageNo))

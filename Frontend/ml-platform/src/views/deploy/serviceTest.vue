@@ -22,7 +22,7 @@
           <a-table :columns="funcColumns" :data-source="funcData">
           </a-table>
           <a-descriptions title="Description" v-if="serviceDescription !== ''" :value="serviceDescription" style="white-space: pre-wrap;">
-            <a-descriptions-item>{{serviceDescription}}</a-descriptions-item>
+            <a-descriptions-item>{{ serviceDescription }}</a-descriptions-item>
           </a-descriptions>
         </a-card>
         <!-- TODO -->
@@ -101,7 +101,8 @@
               <a-form @submit="taskFormSubmit" :form="form">
                 <a-form-item
                   label="Description"
-                  :labelCol="{ lg: { span: 7 }, sm: { span: 7 } }">
+                  :labelCol="{ lg: { span: 7 }, sm: { span: 7 } }"
+                  :wrapperCol="{lg: {span: 10}, sm: {span: 17} }">
                   <a-textarea
                     :auto-size="{ minRows: 3, maxRows: 10 }"
                     v-decorator="[
@@ -184,6 +185,12 @@
                   <a-button type="primary" htmlType="submit" style="margin-left: 16px">Submit</a-button>
                 </a-form-item>
               </a-form>
+            </a-card>
+          </a-col>
+          <a-col :span="12">
+           <a-card title="Example" :bordered="false">
+              <a-textarea :auto-size="{ minRows: 3, maxRows: 10 }" style="border: none" :defaultValue="func_ex">
+              </a-textarea>
             </a-card>
           </a-col>
           <!-- <a-col :span="12">
@@ -343,6 +350,7 @@ export default {
       form: this.$form.createForm(this),
       testRes: 'Here is result!',
       func_str: '',
+      func_ex: 'import numpy as np\r\nimport cv2\r\n\r\ndef defualt_process(img):\r\n    img = cv2.imdecode(np.frombuffer(img.read(),np.uint8), cv2.IMREAD_COLOR)\r\n    img = cv2.resize(img, (28, 28))\r\n    img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)\r\n    img = img / 255\r\n    img = np.ascontiguousarray(img)\r\n    img = img.astype(np.float)\r\n    img = img.reshape(1,28,28)\r\n    return np.array(img).astype(np.float32)\r\n\r\npreprocess_data.result = defualt_process(preprocess_data.input',
 
       curlStr: '',
       spinning: false,

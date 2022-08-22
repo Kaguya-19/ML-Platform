@@ -9,17 +9,16 @@
         <a :href="&quot;/model/model-test?id=&quot;+model_id">Model</a>
         <a style="margin-left: 30px" :href="&quot;http://&quot;+testUrl">Test File</a>
         <br/><br/>
-        <!-- TODO: wait backend -->
-        <a-button @click="deploy" v-if="testStatus!='run'">Run</a-button>
-        <a-button @click="undeploy" v-if="testStatus!='stop'">Stop</a-button>
-        <a-button @click="pause" v-if="testStatus!='pause'">Pause</a-button>
+        <a-button @click="deploy" v-if="testStatus=='paused'">Run</a-button>
+        <a-button @click="undeploy" v-if="testStatus=='run'">Stop</a-button>
+        <a-button @click="pause" v-if="testStatus=='run'">Pause</a-button>
 
         <a-row type="flex">
           <a-col flex="auto">
             <a-statistic title="id" :value="test_id" />
           </a-col>
           <a-col flex="auto">
-            <a-statistic title="Status" :value="testStatus?'Finished':'Unfinish'" />
+            <a-statistic title="Status" :value="testStatus" />
           </a-col>
           <a-col flex="auto">
             <a-statistic title="Added time" :value="addTime" />
@@ -34,8 +33,8 @@
           </a-col>
           <a-col flex="auto">
             <a-descriptions title="Result"></a-descriptions>
-            <a-textarea  title="Result" :auto-size="{ minRows: 3, maxRows: 20 }" style="border: none" :defaultValue="testRes">
-              </a-textarea>
+            <a-textarea title="Result" :auto-size="{ minRows: 3, maxRows: 20 }" style="border: none" :defaultValue="testRes">
+            </a-textarea>
           </a-col>
         </a-row>
         <a-row type="flex" style="margin-top: 20px">
@@ -62,7 +61,7 @@ export default {
     return {
       // form: this.$form.createForm(this),
       test_id: this.$route.query.id,
-      testStatus: false,
+      testStatus: '',
       addTime: '2022-8-7 23:07',
       testDescription: '',
       model_id: 0,
@@ -82,7 +81,7 @@ export default {
     getInfo () {
       axios.get(`/ml/test/${this.test_id}`)
           .then(res => {
-            this.testStatus = res.data.is_finished
+            this.testStatus = res.data.status
             this.addTime = res.data.add_time
             this.testDescription = res.data.description
             this.model_id = res.data.mod
@@ -90,7 +89,7 @@ export default {
             this.recent_modified_time = res.data.recent_modified_time
             this.end_time = res.data.end_time
             this.testUrl = res.data.tested_file
-            if (this.testStatus) {
+            if (this.testStatus === 'finished' || this.testStatus === 'interrupted') {
               this.testRes = JSON.stringify(res.data.result)
             }
             }).catch(err => {
@@ -110,7 +109,7 @@ export default {
         okType: 'danger',
         onOk () {
           const formData = new FormData()
-          formData.append('status', 'stop')
+          formData.append('status', 'interrupted')
           axios({
             url: `/ml/test/${thi.test_id}`,
             method: 'put',

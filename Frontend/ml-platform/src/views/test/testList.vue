@@ -22,8 +22,10 @@
               <a-form-item label="Status">
                 <a-select placeholder="" default-value="" v-model="filter_status">
                   <a-select-option value="">All</a-select-option>
-                  <a-select-option value="0">Unfinished</a-select-option>
-                  <a-select-option value="1">Finished</a-select-option>
+                  <a-select-option value="run">Running</a-select-option>
+                  <a-select-option value="paused">Paused</a-select-option>
+                  <a-select-option value="finished">Finished</a-select-option>
+                  <a-select-option value="interrupted">Interrupted</a-select-option>
                 </a-select>
               </a-form-item>
             </a-col>
@@ -57,7 +59,7 @@
               </a-form-item>
             </a-col>
           </template> -->
-            <a-col :md="!advanced && 8 || 24" :sm="24">
+            <!-- <a-col :md="!advanced && 8 || 24" :sm="24">
               <span class="table-page-search-submitButtons" :style="advanced && { float: 'right', overflow: 'hidden' } || {} ">
                 <a-button type="primary" @click="filter">Query</a-button>
                 <a-button style="margin-left: 8px" @click="resetForm">Reset</a-button>
@@ -66,7 +68,7 @@
                   <a-icon :type="advanced ? 'up' : 'down'"/>
                 </a>
               </span>
-            </a-col>
+            </a-col> -->
           </a-row>
         </a-form>
       </div>
@@ -115,12 +117,12 @@
           <div class="editable-row-operations">
             <span>
               <a class="edit" @click="() => detail(record)">Detail</a>
-              <a-divider type="vertical" v-if="record.status"/>
-              <a class="delete" @click="() => deploy(record)" v-if="record.status">Run</a>
-              <a-divider type="vertical" v-if="!record.status"/>
-              <a class="delete" @click="() => pause(record)" v-if="!record.status">Pause</a>
-              <a-divider type="vertical" v-if="!record.status"/>
-              <a class="delete" @click="() => stop(record)" v-if="!record.status">Stop</a>
+              <a-divider type="vertical" v-if="record.status=='paused'"/>
+              <a class="delete" @click="() => deploy(record)" v-if="record.status=='paused'">Run</a>
+              <a-divider type="vertical" v-if="record.status=='run'"/>
+              <a class="delete" @click="() => pause(record)" v-if="record.status=='run'">Pause</a>
+              <a-divider type="vertical" v-if="record.status=='run'"/>
+              <a class="delete" @click="() => stop(record)" v-if="record.status=='run'">Stop</a>
               <a-divider type="vertical" />
               <a class="delete" @click="() => del(record)">Del</a>
             </span>
@@ -191,7 +193,7 @@ export default {
         //   this.queryParam['model_type'] = this.filter_type
         // }
         if (this.filter_status !== '') {
-          this.queryParam['is_finished'] = this.filter_status
+          this.queryParam['status'] = this.filter_status
         }
         return axios.get('/ml/test', {
           params: Object.assign(parameter, this.queryParam)
@@ -346,11 +348,11 @@ export default {
       const thi = this
       this.$confirm({
         title: 'Warning',
-        content: `Deploy ${row.name}?`,
+        content: `Run ${row.name}?`,
         okType: 'danger',
         onOk () {
           const formData = new FormData()
-          formData.append('status', 'deployed')
+          formData.append('status', 'run')
           axios({
             url: `/ml/test/${row.id}`,
             method: 'put',
@@ -360,7 +362,7 @@ export default {
             },
             data: formData
             }).then(res => {
-                thi.$message.success('Deploy successfully.')
+                thi.$message.success('Run successfully.')
                 thi.resetForm()
                 thi.$refs.table.refresh(true)
               }).catch(err => {
@@ -368,7 +370,7 @@ export default {
               try {
                 thi.$message.error(err.response.data.errmsg)
               } catch (err) {
-                thi.$message.error('deploy failed.')
+                thi.$message.error('Run failed.')
                 }
             })
         }
@@ -382,7 +384,7 @@ export default {
         okType: 'danger',
         async onOk () {
           const formData = new FormData()
-          formData.append('status', 'deployed')
+          formData.append('status', 'run')
           console.log(thi.selectedRows)
           for (var i = 0; i < thi.selectedRows.length; i++) {
           await axios({
@@ -398,7 +400,7 @@ export default {
               try {
                 thi.$message.error(err.response.data.errmsg)
               } catch (err) {
-                thi.$message.error('deploy failed.')
+                thi.$message.error('Run failed.')
                 }
             })
           }
@@ -414,7 +416,7 @@ export default {
         okType: 'danger',
         onOk () {
           const formData = new FormData()
-          formData.append('status', 'undeployed')
+          formData.append('status', 'interrputed')
           axios({
             url: `/ml/test/${row.id}`,
             method: 'put',
@@ -424,7 +426,7 @@ export default {
             },
             data: formData
             }).then(res => {
-                thi.$message.success('Undeploy successfully.')
+                thi.$message.success('Stop successfully.')
                 thi.resetForm()
                 thi.$refs.table.refresh(true)
               }).catch(err => {
@@ -432,7 +434,7 @@ export default {
               try {
                 thi.$message.error(err.response.data.errmsg)
               } catch (err) {
-                thi.$message.error('undeploy failed.')
+                thi.$message.error('Stop failed.')
                 }
             })
         }
@@ -446,7 +448,7 @@ export default {
         okType: 'danger',
         async onOk () {
           const formData = new FormData()
-          formData.append('status', 'undeployed')
+          formData.append('status', 'interrputed')
           console.log(thi.selectedRows)
           for (var i = 0; i < thi.selectedRows.length; i++) {
           await axios({
@@ -462,7 +464,7 @@ export default {
               try {
                 thi.$message.error(err.response.data.errmsg)
               } catch (err) {
-                thi.$message.error('Undeploy failed.')
+                thi.$message.error('Stop failed.')
                 }
             })
           }

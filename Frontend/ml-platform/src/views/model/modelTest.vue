@@ -108,10 +108,8 @@
               :multiplt="false"
               :max-count="1"
               v-decorator="['file']"
-              :show-upload-list="{ showRemoveIcon: false }">
-              <a-button>
-                <a-icon type="upload" /> Select File
-              </a-button>
+              :show-upload-list="{ showRemoveIcon: false }"
+              disable="true">
             </a-upload>
           </a-form-item>
           <a-form-item :wrapperCol="{ span: 24 }" style="text-align: center">
@@ -125,7 +123,7 @@
           <a-col :span="12">
             <a-card title="Input" :bordered="false" v-if="isJSON">
               <template #extra><a @click.stop="toJSON">Form</a></template>
-              <a-textarea :auto-size="{ minRows: 3, maxRows: 10 }"  v-model="jsonStr" />
+              <a-textarea :auto-size="{ minRows: 3, maxRows: 10 }" v-model="jsonStr" />
               <!-- <a-button @click.prevent="reset">Clear</a-button> -->
               <a-button type="primary" @click.stop="submitJSON" style="margin-left: 16px">Submit</a-button>
             </a-card>

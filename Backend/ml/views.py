@@ -434,7 +434,8 @@ def start_test(test_file_id , service_id):
             input_shape = len(input_info)
         elif tested_model_type == 'onnx':
             input_shape = input_info[0]['shape']
-            input_shape = input_shape[1:]
+            if input_shape[0] == "batch_size":
+                input_shape = input_shape[1:]
         elif tested_model_type == 'keras':
             input_shape = input_info[0]['shape']
             input_shape = input_shape[1:]
@@ -461,13 +462,8 @@ def start_test(test_file_id , service_id):
                                 content = image_file.read()  # 一次性读入整张图片信息
                                 image = np.asarray(bytearray(content), dtype='uint8')
                                 image = cv2.imdecode(image, cv2.IMREAD_COLOR)
-                                x_test.append(defualt_process(image))
-                                if image.shape != tuple(input_shape):
-                                    res = {"errmsg":"输入图片不适配此模型"}
-                                    test_task.result = res
-                                    test_task.status = 'interrupted'
-                                    test_task.save()
-                                    return
+                                image = defualt_process(image)
+                                x_test.append(image[0])
                                 # cv2.imshow('image', image)
                         elif '.txt' in name:
                             with zfile.open(name, 'r') as file_to_read:  # 打开文件，将其值赋予file_to_read

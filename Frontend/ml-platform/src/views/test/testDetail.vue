@@ -9,7 +9,7 @@
         <a :href="&quot;/model/model-test?id=&quot;+model_id">Model</a>
         <a style="margin-left: 30px" :href="&quot;http://&quot;+testUrl">Test File</a>
         <br/><br/>
-        // <a-button @click="deploy" v-if="testStatus=='paused'">Run</a-button>
+        <!-- <a-button @click="deploy" v-if="testStatus=='paused'">Run</a-button> -->
         <a-button @click="undeploy" v-if="testStatus=='run'">Stop</a-button>
         <!-- <a-button @click="pause" v-if="testStatus=='run'">Pause</a-button> -->
 
@@ -33,7 +33,7 @@
           </a-col>
           <a-col flex="auto">
             <a-descriptions title="Result"></a-descriptions>
-            <a-textarea title="Result" :auto-size="{ minRows: 3, maxRows: 20 }" style="border: none" :defaultValue="testRes">
+            <a-textarea title="Result" :auto-size="{ minRows: 3, maxRows: 20 }" style="border: none" :value="testRes" v-if="!spinning">
             </a-textarea>
           </a-col>
         </a-row>
@@ -69,7 +69,8 @@ export default {
       recent_modified_time: '',
       end_time: '',
       testRes: '',
-      testUrl: ''
+      testUrl: '',
+      spinning: false
     }
   },
 
@@ -79,6 +80,7 @@ export default {
   methods: {
     // handler
     getInfo () {
+      this.spinning = true
       axios.get(`/ml/test/${this.test_id}`)
           .then(res => {
             this.testStatus = res.data.status
@@ -89,8 +91,9 @@ export default {
             this.recent_modified_time = res.data.recent_modified_time
             this.end_time = res.data.end_time
             this.testUrl = res.data.tested_file
-            if ((this.testStatus === 'finished') || (this.testStatus === 'interrupted')) {
+            if ('result' in res.data) {
               this.testRes = JSON.stringify(res.data.result)
+              this.spinning = false
             }
             }).catch(err => {
             console.log(err)

@@ -105,8 +105,7 @@
               <a-form @submit="taskFormSubmit" :form="form">
                 <a-form-item
                   label="Description"
-                  :labelCol="{ lg: { span: 7 }, sm: { span: 7 } }"
-                  :wrapperCol="{lg: {span: 10}, sm: {span: 17} }">
+                  >
                   <a-textarea
                     :auto-size="{ minRows: 3, maxRows: 10 }"
                     v-decorator="[
@@ -139,7 +138,6 @@
         </a-row>
       </template>
       <template v-if="page=='list'">
-        <a-row type="flex" :gutter="16">
           <s-table
             ref="table"
             size="default"
@@ -162,8 +160,6 @@
               </div>
             </template>
           </s-table>
-
-        </a-row>
       </template>
       <template v-if="page=='pro'">
         <a-row type="flex" :gutter="16">

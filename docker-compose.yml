@@ -1,5 +1,13 @@
 version: "3"
 services:
+  redis:
+    container_name: redis
+    restart: always
+    ports:
+     - "6379:6379"
+    image: redis
+    networks:
+      - web_network
   backend:
     container_name: backend
     restart: always
@@ -26,7 +34,11 @@ services:
       python /code/Backend/manage.py makemigrations &&
       python /code/Backend/manage.py makemigrations ml &&
       python /code/Backend/manage.py migrate &&
-      uwsgi --ini /code/Backend/config/docker_test.ini"
+      python /code/Backend/manage.py migrate django_celery_results &&
+      uwsgi -d --ini /code/Backend/config/docker_test.ini &&
+      cd /code/Backend && 
+      celery -A MLPlatform worker -l INFO" 
+      # TODO: daemon
   nginx:
     container_name: nginx
     restart: always

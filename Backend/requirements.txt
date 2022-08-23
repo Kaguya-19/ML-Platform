@@ -19,3 +19,6 @@ urllib3==1.26.11
 yarg==0.1.9
 django-cors-headers
 django_filter
+django-celery-results
+celery
+redis

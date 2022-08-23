@@ -4,7 +4,7 @@ from threading import local
 from tkinter.filedialog import test
 from turtle import Turtle
 from django.shortcuts import render
-from django.http import JsonResponse
+from django.http import JsonResponse,HttpResponse
 from django.forms.models import model_to_dict
 from django.core.paginator import  Paginator
 from django.core.serializers import json
@@ -262,7 +262,6 @@ def fast_test(request,id,type='model'):
     model_path = model.file.path
     model_type = model.model_type
     input_info = model.input
-    # TODO:base64处理
     global preprocess_data
     x_test = []
     test_data = request.POST
@@ -274,7 +273,7 @@ def fast_test(request,id,type='model'):
                 if keyi in key:
                     value = test_data[key]
                     if isinstance(value,str) and value.startswith('data:'):# base 64                        
-                        file = base64.b64decode(','+value.split(',',1)[1])
+                        file = base64.b64decode(value)
                         if type == 'service' and service.func_str != '':
                             preprocess_data.input = file
                             preprocess_data.result = {}
@@ -374,7 +373,10 @@ def task_add(request):
         else:
             mod = service.mod
             test = Test_info.objects.create(tested_file= request.FILES['file'],description=description,service=service,mod=mod)
-            new_task(test.id ,service.id)
+            task = new_task_thread.delay(test.id ,service.id)
+            print(task.id)
+            test.task_ID = str(task.id)
+            test.save()
             res['task_id'] = test.id
     except:
         traceback.print_exc()
@@ -520,6 +522,8 @@ def start_test(test_file_id , service_id):
                         continue
                     x_test.append(number_tmp_data)
                     
+                
+                # zfile.close()
         elif '.csv' in test_file.name:
             with open(test_file.path, mode='r', encoding='utf-8') as f:
                 if service.func_str != '': 
@@ -548,6 +552,7 @@ def start_test(test_file_id , service_id):
             test_task.save()
             return
         x_test = np.array(x_test).astype(np.float32)
+        print(x_test)
         res = batch_predict(path = tested_model_path, type = tested_model_type,x_test = x_test)
     except:
         import traceback
@@ -573,11 +578,13 @@ def start_test(test_file_id , service_id):
     test_task.save()        
     return
 
-def new_task(test_file_id, service_id):
-    print("new task: {}".format(test_file_id))
-    param_tuple = (test_file_id, service_id)
-    new_thread = Thread(target=start_test, args=param_tuple)
-    new_thread.start()
+# thread->task
+from .tasks import *
+# def new_task(test_file_id, service_id):
+#     print("new task: {}".format(test_file_id))
+#     param_tuple = (test_file_id, service_id)
+#     print('ready enter new_task_thread')
+#     new_task_thread.delay(param_tuple = param_tuple)
     
 def test_quick(request, model_id):
     if request.method == 'POST':
@@ -640,7 +647,7 @@ def test_all(request):
 def test_api(request):
     if request.method == 'GET':
         return test_all(request)
-    elif request.method == 'POST':
+    elif request.method ==  'POST':
         return task_add(request)
     else:
         return JsonResponse({"errmsg":"请求有误"},status=400)
@@ -710,7 +717,12 @@ def test_change(request, test_id):
         test.description = description
         test.status = status
         if test.status != 'finished' and test.status != 'interrupted':
-            test.save()  
+            if status == 'interrupted':
+                from celery.app.control import Control
+                from MLPlatform.celery import celery_app
+                celery_control = Control(app=celery_app)
+                celery_control.revoke(test.task_id, terminate=True)
+            test.save()
     except:
         res = {"errmsg":"修改测试文件失败"}
         willContinue = False
@@ -806,13 +818,24 @@ def service_all(request):
     except:
         return JsonResponse({"errmsg":"获取部署信息失败"},status=400)
 
+from celery.app.control import Control
+from MLPlatform.celery import celery_app  
 def service_delete(request, service_id):
     res = dict()
     willContinue = True
     try:
-        service = Service_info.objects.get(id=service_id)
+        service = Service_info.objects.get(id=service_id) 
+        tests = service.test_info_set.all()   
+        celery_control = Control(app=celery_app)
+        # TODO  
+        for test in tests:
+            task_ID = test.task_ID
+            test.status = 'interrupted'
+            test.save()
+            celery_control.revoke(task_ID, terminate=True)
+
         service.delete()
-        {"id":service_id}
+        res = {"id":service_id}
     except:
         res = {"errmsg":"删除部署失败"}
         willContinue = False
@@ -871,6 +894,37 @@ def service_change(request, service_id):
     else:
         resp.status_code = 400
     return resp    
+
+
+# Create your views here.
+ 
+def task_add_view(request):
+    task_id = add.delay(100,200)
+    print(task_id)
+    tmp = str(task_id)
+    res = {"task_id": tmp}
+    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
+    return resp
+
+from celery import result
+
+
+def get_result_by_taskid(request):
+    task_id = request.GET.get('task_id')
+    print('taskid',task_id)
+
+	# 异步执行
+    ar = result.AsyncResult(task_id)
+ 
+    if ar.ready():
+        return JsonResponse({'status': ar.state, 'result': ar.get()})
+    else:
+        # return JsonResponse({'status': ar.state, 'result': ''})
+        return HttpResponse(f'hello')
+
+
+
+
 
 # 测试
 if __name__ == "__main__":

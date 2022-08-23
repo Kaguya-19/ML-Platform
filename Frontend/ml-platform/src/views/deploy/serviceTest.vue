@@ -16,6 +16,10 @@
           <a-button @click="deploy" v-if="serviceStatus!='deployed'">Deploy</a-button>
           <a-button @click="undeploy" v-if="serviceStatus!='undeployed'">Undeploy</a-button>
           <a-button @click="pause" v-if="serviceStatus!='paused'">Pause</a-button>
+          <a-descriptions title="How to use">
+            <!-- TODO 完善 -->
+            <a-descriptions-item>fast test:POST: input<br/>PUT status:'paused'\'deployed'\'undeployed'<br/>get info:GET'</a-descriptions-item>
+          </a-descriptions>
           <template #extra><a :href="&quot;/model/model-test?id=&quot;+model_id">Model</a></template>
           <br/>
           <a :href="&quot;http://&quot;+baseUrl+&quot;/ml/deploy/&quot;+deploy_id">{{ baseUrl }}/ml/deploy/{{ deploy_id }}</a>

@@ -270,10 +270,8 @@ def fast_test(request,id,type='model'):
     input_name = [x["name"] for x in input_info]
     try:
         for keyi in input_name:
-            in_txt = False
             for key in test_data:
                 if keyi in key:
-                    in_txt = True
                     value = test_data[key]
                     if isinstance(value,str) and value.startswith('data:'):# base 64                        
                         file = base64.b64decode(value)
@@ -324,6 +322,7 @@ def fast_test(request,id,type='model'):
                                 txtlist = re.split(r'[\s,;]',txtstr)
                                 x_test.append([float(x) for x in txtlist])
         x_test = np.array(x_test).astype(np.float32)
+        print(x_test.shape)
         return quick_predict(model_path,type = model_type,x_test = x_test)
     except Exception as e:
         return {"stderr":traceback.format_exc()}

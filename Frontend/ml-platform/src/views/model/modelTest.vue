@@ -11,7 +11,6 @@
     <a-spin :spinning="spinning">
       <template v-if="page == 'info'">
         <!-- 基本信息 -->
-
         <a-card :bordered="false">
           <a-row type="flex">
             <a-col flex="auto">
@@ -173,7 +172,7 @@
       <!-- tasks -->
       <template v-if="page=='tasks'">
         <a-button @click.stop="deploy">Deploy</a-button>
-        <a-row type="flex" :gutter="16">
+        <!-- <a-row type="flex" :gutter="24"> -->
           <s-table
             ref="table"
             size="default"
@@ -197,7 +196,6 @@
             </template>
           </s-table>
 
-        </a-row>
       </template>
     </a-spin>
   </page-header-wrapper>

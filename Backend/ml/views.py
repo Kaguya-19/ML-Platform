@@ -17,7 +17,9 @@ from .pre_process_example import defualt_process
 BASE_URL = '127.0.0.1:8000'
 import socket
 import traceback
-
+import base64
+import re
+import cv2
 
 preprocess_data=local() 
 
@@ -261,48 +263,66 @@ def fast_test(request,id,type='model'):
     model_type = model.model_type
     input_info = model.input
     # TODO:base64处理
+    global preprocess_data
     x_test = []
     test_data = request.POST
     file_data = request.FILES
     input_name = [x["name"] for x in input_info]
     try:
-        print(test_data)
         for keyi in input_name:
-            in_txt = False
             for key in test_data:
                 if keyi in key:
-                    in_txt = True
                     value = test_data[key]
-                    if isinstance(value,list):
-                        x_test += value
-                    else:
-                        x_test.append(value)
-            for key in file_data:
-                if keyi in key:
-                    file = file_data[key]
-                    if type == 'service' and service.func_str != '':
-                        global preprocess_data
-                        preprocess_data.input = file.file
-                        preprocess_data.result = {}
-                        func_str = service.func_str
-                        exec(func_str)
-                        # preprocessed_res = preprocess_result['result']
-                        x_test.append(preprocess_data.result)
-                    else:
-                        if '.jpg' in file.name:
-                            print(file.file)
-                            x_test = cv2.imdecode(np.frombuffer(file.file.read(),np.uint8), cv2.IMREAD_COLOR)
-                            x_test = defualt_process(x_test)
-                            #process img
-                            break
-                        elif '.csv' in file.name or '.txt' in file.name:
-                            while True:
-                                txtstr = file.file.encode('utf-8')
+                    if isinstance(value,str) and value.startswith('data:'):# base 64                        
+                        file = base64.b64decode(value)
+                        if type == 'service' and service.func_str != '':
+                            preprocess_data.input = file
+                            preprocess_data.result = {}
+                            func_str = service.func_str
+                            exec(func_str)
+                            # preprocessed_res = preprocess_result['result']
+                            x_test.append(preprocess_data.result)
+                        else:
+                            if value.startswith('data:image'):
+                                x_test = cv2.imdecode(np.frombuffer(file,np.uint8), cv2.IMREAD_COLOR)
+                                x_test = defualt_process(x_test)
+                                #process img
+                                break
+                            elif value.startswith('data:application/octet-stream'):
+                                while True:
+                                    txtstr = file.encode('utf-8')
+                                    import re
+                                    txtlist = re.split(r'\s|,',txtstr)
+                                    x_test.append(txtlist)
+                        if isinstance(value,list):
+                            x_test += value
+                        else:
+                            x_test.append(value)
+            if not in_txt:
+                for key in file_data:
+                    if keyi in key:
+                        file = file_data[key]
+                        if type == 'service' and service.func_str != '':
+                            global preprocess_data
+                            preprocess_data.input = file.file
+                            preprocess_data.result = {}
+                            func_str = service.func_str
+                            exec(func_str)
+                            # preprocessed_res = preprocess_result['result']
+                            x_test.append(preprocess_data.result)
+                        else:
+                            if '.jpg' in file.name:
+                                x_test = cv2.imdecode(np.frombuffer(file.file.read(),np.uint8), cv2.IMREAD_COLOR)
+                                x_test = defualt_process(x_test)
+                                #process img
+                                break
+                            elif '.csv' in file.name or '.txt' in file.name:
+                                txtstr = file.file.read().decode('utf-8')
                                 import re
-                                txtlist = re.split(r'\s|,',txtstr)
-                                x_test.append(txtlist)
+                                txtlist = re.split(r'[\s,;]',txtstr)
+                                x_test.append([float(x) for x in txtlist])
         x_test = np.array(x_test).astype(np.float32)
-        print("x_test", x_test.shape)
+        print(x_test.shape)
         return quick_predict(model_path,type = model_type,x_test = x_test)
     except Exception as e:
         return {"stderr":traceback.format_exc()}
@@ -397,128 +417,167 @@ import cv2
 import zipfile
 import numpy as np
 
-# def start_test(test_file_id , service_id):
-#     test_task =  Test_info.objects.get(id=test_file_id)
-#     test_file = test_task.tested_file
-#     test_task.thread_ID = threading.currentThread().ident
-#     res = {}
-#     test_task.result = res
-#     test_task.save()
-#     tested_model_type = test_task.mod.model_type
-#     tested_model_path = test_task.mod.file.path
-#     service = Service_info.objects.get(id=service_id)
-#     print("In Thread")
-#     try:
-#         input_info = test_task.mod.input
-#         if tested_model_type == 'pmml':
-#             input_shape = len(input_info)
-#         elif tested_model_type == 'onnx':
-#             input_shape = input_info[0]['shape']
-#             input_shape = input_shape[1:]
-#         elif tested_model_type == 'keras':
-#             input_shape = input_info[0]['shape']
-#             input_shape = input_shape[1:]
-#         else:
-#             return
-#         x_test=[]
-#         if service.func_str != '':
-#             global preprocess_data
-#             func_str = service.func_str 
-#         if '.zip' in test_file.name:
-#             with zipfile.ZipFile(test_file.path, mode='r') as zfile:  # 只读方式打开压缩包
-#                 for name in zfile.namelist():  # 获取zip文档内所有文件的名称列表
-#                     if service.func_str != '':
-#                         with zfile.open(name, 'r') as file_to_read:
-#                             print('fuck1') 
-#                             preprocess_data.input = file_to_read
-#                             preprocess_data.result = {}
-#                             exec(func_str)
-#                             # preprocessed_res = preprocess_result['result']
-#                             x_test.append(preprocess_data.result)
-#                     else:
-#                         if '.jpg' in name:
-#                             with zfile.open(name, mode='r') as image_file:
-#                                 content = image_file.read()  # 一次性读入整张图片信息
-#                                 image = np.asarray(bytearray(content), dtype='uint8')
-#                                 image = cv2.imdecode(image, cv2.IMREAD_COLOR)
-#                                 x_test.append(defualt_process(image))
-#                                 if image.shape != tuple(input_shape):
-#                                     res = {"errmsg":"输入图片不适配此模型"}
-#                                     test_task.result = res
-#                                     test_task.status = 'interrupted'
-#                                     test_task.save()
-#                                     return
-#                                 # cv2.imshow('image', image)
-#                         elif '.txt' in name:
-#                             with zfile.open(name, 'r') as file_to_read:  # 打开文件，将其值赋予file_to_read
-#                                 while True:
-#                                     lines = file_to_read.readline()  # 整行读取数据
-#                                     if not lines:  # 若该行为空
-#                                         break  # 喀嚓
-#                                     else:
-#                                         this_lines = lines.split()
-#                                         number_this_lines = [float(x) for x in this_lines]
-#                                         if len(number_this_lines) != np.prod(input_shape):
-#                                             res = {"errmsg":"输入的文本行数据量不适配此模型"}
-#                                             test_task.result = res
-#                                             test_task.status = 'interrupted'
-#                                             test_task.save()
-#                                             return
-#                                         x_test.append(list(np.array(number_this_lines).reshape(tuple(input_shape))))
-#                 zfile.close()
-#         elif '.csv' in test_file.name:
-#             with open(test_file.path, mode='r', encoding='utf-8') as f:
-#                 if service.func_str != '': 
-#                     preprocess_data.input = f
-#                     preprocess_data.result = {}
-#                     exec(func_str)
-#                     # preprocessed_res = preprocess_result['result']
-#                     x_test.append(preprocess_data.result)
-#                 else:
-#                     input_file_string = f.read()
-#                     input_file_list = input_file_string.split('\n')
-#                     # 发现有时候最后会多一行，去掉
-#                     if input_file_list[-1] == "":
-#                         input_file_list.pop()
-#                     for line in input_file_list:
-#                         # 使用zip将两组数据打包成字典
-#                         tmp_data = line.split(',')
-#                         number_tmp_data = [float(x) for x in tmp_data]
-#                         if len(number_tmp_data) != np.prod(input_shape):
-#                             continue
-#                         x_test.append(number_tmp_data)
-#         else:
-#             res = {"errmsg":"不支持处理该类型文件"}
-#             test_task.result = res
-#             test_task.status = 'interrupted'
-#             test_task.save()
-#             return
-#         x_test = np.array(x_test).astype(np.float32)
-#         print(x_test)
-#         res = batch_predict(path = tested_model_path, type = tested_model_type,x_test = x_test)
-#     except:
-#         import traceback
-#         res = {"errmsg":traceback.format_exc()}
-#         test_task.result = res
-#         test_task.status = 'interrupted'
-#         test_task.save()
-#         return
-#     test_task.result = res
-#     test_task.status = 'finished'
-#     test_task.recent_modified_time = timezone.now()
-#     test_task.end_time = timezone.now()
-#     test_task.save()
-#     _,deltaTime = divmod((test_task.end_time - test_task.add_time).total_seconds(), 60)
-#     service.average_use_time = \
-#         (service.average_use_time * service.use_times + deltaTime)/(service.use_times + 1)
-#     service.use_times = service.use_times + 1
-#     if deltaTime > service.max_use_time:
-#         service.max_use_time = deltaTime
-#     if deltaTime < service.min_use_time:
-#         service.min_use_time = deltaTime
-#     service.save()
-#     test_task.save()        
-#     return
+def start_test(test_file_id , service_id):
+    test_task =  Test_info.objects.get(id=test_file_id)
+    test_file = test_task.tested_file
+    test_task.threadID = threading.currentThread().ident
+    res = {}
+    test_task.result = res
+    test_task.save()
+    tested_model_type = test_task.mod.model_type
+    tested_model_path = test_task.mod.file.path
+    service = Service_info.objects.get(id=service_id)
+    print("In Thread")
+    try:
+        input_info = test_task.mod.input
+        if tested_model_type == 'pmml':
+            input_shape = len(input_info)
+        elif tested_model_type == 'onnx':
+            input_shape = input_info[0]['shape']
+            if input_shape[0] == "batch_size":
+                input_shape = input_shape[1:]
+        elif tested_model_type == 'keras':
+            input_shape = input_info[0]['shape']
+            input_shape = input_shape[1:]
+        else:
+            return
+        x_test=[]
+        if service.func_str != '':
+            global preprocess_data
+            func_str = service.func_str 
+        if '.zip' in test_file.name:
+            with zipfile.ZipFile(test_file.path, mode='r') as zfile:  # 只读方式打开压缩包
+                for name in zfile.namelist():  # 获取zip文档内所有文件的名称列表
+                    if service.func_str != '':
+                        with zfile.open(name, 'r') as file_to_read:
+                            print('fuck1') 
+                            preprocess_data.input = file_to_read
+                            preprocess_data.result = {}
+                            exec(func_str)
+                            # preprocessed_res = preprocess_result['result']
+                            x_test.append(preprocess_data.result)
+                    else:
+                        if '.jpg' in name:
+                            with zfile.open(name, mode='r') as image_file:
+                                content = image_file.read()  # 一次性读入整张图片信息
+                                image = np.asarray(bytearray(content), dtype='uint8')
+                                image = cv2.imdecode(image, cv2.IMREAD_COLOR)
+                                image = defualt_process(image)
+                                x_test.append(image[0])
+                                # cv2.imshow('image', image)
+                        elif '.txt' in name:
+                            with zfile.open(name, 'r') as file_to_read:  # 打开文件，将其值赋予file_to_read
+                                while True:
+                                    lines = file_to_read.readline()  # 整行读取数据
+                                    if not lines:  # 若该行为空
+                                        break  # 喀嚓
+                                    else:
+                                        this_lines = re.split(r"\s|,|;",lines)
+                                        number_this_lines = [float(x) for x in this_lines]
+                                        if len(number_this_lines) != np.prod(input_shape):
+                                            res = {"errmsg":"输入的文本行数据量不适配此模型"}
+                                            test_task.result = res
+                                            test_task.status = 'interrupted'
+                                            test_task.save()
+                                            return
+                                        x_test.append(list(np.array(number_this_lines).reshape(tuple(input_shape))))
+                        elif '.csv' in test_file.name:
+                            with open(test_file.path, mode='r', encoding='utf-8') as f:
+                                if service.func_str != '': 
+                                    preprocess_data.input = f
+                                    preprocess_data.result = {}
+                                    exec(func_str)
+                                    # preprocessed_res = preprocess_result['result']
+                                    x_test.append(preprocess_data.result)
+                                else:
+                                    input_file_string = f.read()
+                                    input_file_list = input_file_string.split('\n')
+                                    # 发现有时候最后会多一行，去掉
+                                    if input_file_list[-1] == "":
+                                        input_file_list.pop()
+                                    for line in input_file_list:
+                                        # 使用zip将两组数据打包成字典
+                                        tmp_data = line.split(',')
+                                        number_tmp_data = [float(x) for x in tmp_data]
+                                        if len(number_tmp_data) != np.prod(input_shape):
+                                            continue
+                                        x_test.append(number_tmp_data)
+                                zfile.close()
+        elif '.jpg' in test_file.name:
+            content = cv2.imread(test_file.path)
+            image = defualt_process(content)
+            x_test.append(image[0])
+            # cv2.imshow('image', image)
+        elif '.txt' in test_file.name:
+            with open(test_file.path, mode='r', encoding='utf-8') as f:  # 打开文件，将其值赋予file_to_read
+                input_file_string = f.read()
+                input_file_list = input_file_string.split('\n')
+                # 发现有时候最后会多一行，去掉
+                if input_file_list[-1] == "":
+                    input_file_list.pop()
+                for line in input_file_list:
+                    # 使用zip将两组数据打包成字典
+                    tmp_data = re.split(r"\s|,|;",line)
+                    number_tmp_data = [float(x) for x in tmp_data]
+                    if len(number_tmp_data) != np.prod(input_shape):
+                        continue
+                    x_test.append(number_tmp_data)
+                    
+                
+                # zfile.close()
+        elif '.csv' in test_file.name:
+            with open(test_file.path, mode='r', encoding='utf-8') as f:
+                if service.func_str != '': 
+                    preprocess_data.input = f
+                    preprocess_data.result = {}
+                    exec(func_str)
+                    # preprocessed_res = preprocess_result['result']
+                    x_test.append(preprocess_data.result)
+                else:
+                    input_file_string = f.read()
+                    input_file_list = input_file_string.split('\n')
+                    # 发现有时候最后会多一行，去掉
+                    if input_file_list[-1] == "":
+                        input_file_list.pop()
+                    for line in input_file_list:
+                        # 使用zip将两组数据打包成字典
+                        tmp_data = line.split(',')
+                        number_tmp_data = [float(x) for x in tmp_data]
+                        if len(number_tmp_data) != np.prod(input_shape):
+                            continue
+                        x_test.append(number_tmp_data)
+        else:
+            res = {"errmsg":"不支持处理该类型文件"}
+            test_task.result = res
+            test_task.status = 'interrupted'
+            test_task.save()
+            return
+        x_test = np.array(x_test).astype(np.float32)
+        print(x_test)
+        res = batch_predict(path = tested_model_path, type = tested_model_type,x_test = x_test)
+    except:
+        import traceback
+        res = {"errmsg":traceback.format_exc()}
+        test_task.result = res
+        test_task.status = 'interrupted'
+        test_task.save()
+        return
+    test_task.result = res
+    test_task.status = 'finished'
+    test_task.recent_modified_time = timezone.now()
+    test_task.end_time = timezone.now()
+    test_task.save()
+    _,deltaTime = divmod((test_task.end_time - test_task.add_time).total_seconds(), 60)
+    service.average_use_time = \
+        (service.average_use_time * service.use_times + deltaTime)/(service.use_times + 1)
+    service.use_times = service.use_times + 1
+    if deltaTime > service.max_use_time:
+        service.max_use_time = deltaTime
+    if deltaTime < service.min_use_time:
+        service.min_use_time = deltaTime
+    service.save()
+    test_task.save()        
+    return
 
 # thread->task
 from .tasks import *
@@ -666,7 +725,8 @@ def test_change(request, test_id):
         test.recent_modified_time = timezone.now()
         test.description = description
         test.status = status
-        test.save()  
+        if test.status != 'finished' and test.status != 'interrupted':
+            test.save()  
     except:
         res = {"errmsg":"修改测试文件失败"}
         willContinue = False

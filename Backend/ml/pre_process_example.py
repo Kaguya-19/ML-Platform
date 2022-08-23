@@ -33,9 +33,6 @@ def defualt_process(img):
     img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
     img = img / 255
     img = np.ascontiguousarray(img)
-    # img = torch.from_numpy(img)
     img = img.astype(np.float)
     img = img.reshape(1,1,28,28)
-    # if img.ndimension() == 3:
-    #     img = img.unsqueeze(0)
-    return img
+    return np.array(img).astype(np.float32)

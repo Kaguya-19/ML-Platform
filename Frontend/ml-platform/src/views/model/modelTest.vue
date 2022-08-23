@@ -89,12 +89,10 @@
             label="Model type"
             :labelCol="{ lg: { span: 7 }, sm: { span: 7 } }"
             :wrapperCol="{ lg: { span: 10 }, sm: { span: 17 } }">
-            <a-select
+            <a-input
+              disabled="true"
               v-decorator="['model_type', { rules: [{ required: true, message: 'Please choose your model type' }], initialValue: modelType }]">
-              <a-select-option value="pmml">PMML</a-select-option>
-              <a-select-option value="onnx">ONNX</a-select-option>
-              <a-select-option value="keras">Keras</a-select-option>
-            </a-select>
+            </a-input>
           </a-form-item>
           <!-- 模型文件上传 -->
           <a-form-item
@@ -109,7 +107,7 @@
               :max-count="1"
               v-decorator="['file']"
               :show-upload-list="{ showRemoveIcon: false }"
-              disable="true">
+              disabled="true">
             </a-upload>
           </a-form-item>
           <a-form-item :wrapperCol="{ span: 24 }" style="text-align: center">
@@ -319,7 +317,7 @@ export default {
       // 加载数据方法 必须为 Promise 对象
       loadData: parameter => {
         return axios.get('/ml/deploy', {
-          params: Object.assign(parameter, { 'mod': this.model_id })
+          params: Object.assign(parameter, { 'model_id': this.model_id })
         }).then(res => {
             console.log(res.data)
             return res.data.result
@@ -497,6 +495,9 @@ export default {
         if (!err) {
           this.spinning = true
           Object.keys(values).forEach(key => {
+            if (this.isFile[key]) {
+              values[key] = values[key].file
+            }
             var val = values[key]
             console.log(val)
             if (typeof (val) === 'string' && val.startsWith('[') && val.endsWith(']')) {

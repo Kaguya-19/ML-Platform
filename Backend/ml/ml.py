@@ -347,20 +347,28 @@ class ONNXModel(BaseModel):
             inputs = sess.get_inputs()
             if len(sess.get_inputs()) == 1:
                 input_name = sess.get_inputs()[0].name
-                if inputs[0].shape[0] == "batch_size":
-                    output = [sess.run(None, {input_name: x_test})]
-                else:
-                    output = [sess.run(None, {input_name: x_test[i][np.newaxis,:]}) for i in range(x_test.shape[0])]
                 sess = self._get_inference_session()
                 output_fields = sess.get_outputs()
-                for i in range(len(output[0])):
-                    tmp_sample = {}
-                    for j in range(len(output_fields)):
-                        if isinstance(output[i][j],np.ndarray):
-                            tmp_sample[output_fields[j].name] = output[i][j].tolist()
-                        else:
-                            tmp_sample[output_fields[j].name] = output[i][j]
-                    result.append(tmp_sample)
+                if inputs[0].shape[0] == "batch_size":
+                    output = sess.run(None, {input_name: x_test})
+                    for i in range(x_test.shape[0]):
+                        tmp_sample = {}
+                        for j in range(len(output_fields)):
+                            if isinstance(output[j][i],np.ndarray):
+                                tmp_sample[output_fields[j].name] = output[j][i].tolist()
+                            else:
+                                tmp_sample[output_fields[j].name] = output[j][i]
+                        result.append(tmp_sample)
+                else:
+                    output = [sess.run(None, {input_name: x_test[i][np.newaxis,:]}) for i in range(x_test.shape[0])]
+                    for i in range(x_test.shape[0]):
+                        tmp_sample = {}
+                        for j in range(len(output_fields)):
+                            if isinstance(output[i][j],np.ndarray):
+                                tmp_sample[output_fields[j].name] = output[i][j].tolist()
+                            else:
+                                tmp_sample[output_fields[j].name] = output[i][j]
+                        result.append(tmp_sample)
                 return {
                     "result": result,
                 }

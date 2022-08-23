@@ -1,7 +1,7 @@
 from array import array
 import threading
-from tkinter.filedialog import test
-from turtle import Turtle
+#from tkinter.filedialog import test
+# from turtle import Turtle
 
 from django.shortcuts import render
 from django.http import JsonResponse

@@ -14,7 +14,7 @@ import themePluginConfig from '../config/themePluginConfig'
 // mock
 // WARNING: `mockjs` NOT SUPPORT `IE` PLEASE DO NOT USE IN `production` ENV.
 import './mock'
-import axios from 'axios'
+
 import bootstrap from './core/bootstrap'
 import './core/lazy_use' // use lazy load components
 import './utils/filter' // global filter
@@ -31,6 +31,8 @@ Vue.component('pro-layout', ProLayout)
 Vue.component('page-container', PageHeaderWrapper)
 Vue.component('page-header-wrapper', PageHeaderWrapper)
 
+// 构建时注释以下两行代码
+import axios from 'axios'
 axios.defaults.baseURL = 'http://localhost:8001'
 
 // axios.interceptors.request.use((config) => {

@@ -38,7 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'corsheaders',
-
+    'django_celery_results',
     'ml',
 ]
 
@@ -180,8 +180,12 @@ CORS_ALLOW_HEADERS = (
 # Broker配置，使用Redis作为消息中间件
 BROKER_URL = 'redis://127.0.0.1:6379/0' 
  
-# BACKEND配置，这里使用redis
-CELERY_RESULT_BACKEND = 'redis://127.0.0.1:6379/0' 
+# # BACKEND配置，这里使用redis
+# CELERY_RESULT_BACKEND = 'redis://127.0.0.1:6379/0' 
+ 
+CELERY_RESULT_BACKEND = 'django-db'
+ 
+CELERY_CACHE_BACKEND = 'django-cache'
  
 # 结果序列化方案
 CELERY_RESULT_SERIALIZER = 'json' 

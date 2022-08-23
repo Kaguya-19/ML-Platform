@@ -1,31 +1,23 @@
-from celery import shared_task
+from celery import shared_task, current_task
 
 @shared_task
 def add(x, y):
     return x + y
- 
-
-@shared_task
-def new_task_thread(param_tuple):
-    print('enter new_task_thread')
-    print(param_tuple)
-    new_thread = Thread(target=start_test, args=param_tuple)
 
 from .models import Model_info,Test_info,Service_info
-from threading import Thread
 import cv2
 import zipfile
 import numpy as np
 from .pre_process_example import defualt_process
 from django.utils import timezone
-import threading
 from .ml import batch_predict,quick_predict
 
-def start_test(test_file_id , service_id):
+@shared_task
+def new_task_thread(test_file_id , service_id):
     print('enter start_test')
     test_task =  Test_info.objects.get(id=test_file_id)
     test_file = test_task.tested_file
-    test_task.thread_ID = threading.currentThread().ident
+    # test_task.task_ID = current_task.request.id
     res = {}
     test_task.result = res
     test_task.save()

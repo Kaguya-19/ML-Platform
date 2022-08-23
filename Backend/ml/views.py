@@ -262,7 +262,6 @@ def fast_test(request,id,type='model'):
     model_path = model.file.path
     model_type = model.model_type
     input_info = model.input
-    # TODO:base64处理
     global preprocess_data
     x_test = []
     test_data = request.POST
@@ -294,33 +293,31 @@ def fast_test(request,id,type='model'):
                                     import re
                                     txtlist = re.split(r'\s|,',txtstr)
                                     x_test.append(txtlist)
-                        if isinstance(value,list):
-                            x_test += value
-                        else:
-                            x_test.append(value)
-            if not in_txt:
-                for key in file_data:
-                    if keyi in key:
-                        file = file_data[key]
-                        if type == 'service' and service.func_str != '':
-                            global preprocess_data
-                            preprocess_data.input = file.file
-                            preprocess_data.result = {}
-                            func_str = service.func_str
-                            exec(func_str)
-                            # preprocessed_res = preprocess_result['result']
-                            x_test.append(preprocess_data.result)
-                        else:
-                            if '.jpg' in file.name:
-                                x_test = cv2.imdecode(np.frombuffer(file.file.read(),np.uint8), cv2.IMREAD_COLOR)
-                                x_test = defualt_process(x_test)
-                                #process img
-                                break
-                            elif '.csv' in file.name or '.txt' in file.name:
-                                txtstr = file.file.read().decode('utf-8')
-                                import re
-                                txtlist = re.split(r'[\s,;]',txtstr)
-                                x_test.append([float(x) for x in txtlist])
+                    elif isinstance(value,list):
+                        x_test += value
+                    else:
+                        x_test.append(value)
+            for key in file_data:
+                if keyi in key:
+                    file = file_data[key]
+                    if type == 'service' and service.func_str != '':
+                        preprocess_data.input = file.file
+                        preprocess_data.result = {}
+                        func_str = service.func_str
+                        exec(func_str)
+                        # preprocessed_res = preprocess_result['result']
+                        x_test.append(preprocess_data.result)
+                    else:
+                        if '.jpg' in file.name:
+                            x_test = cv2.imdecode(np.frombuffer(file.file.read(),np.uint8), cv2.IMREAD_COLOR)
+                            x_test = defualt_process(x_test)
+                            #process img
+                            break
+                        elif '.csv' in file.name or '.txt' in file.name:
+                            txtstr = file.file.read().decode('utf-8')
+                            import re
+                            txtlist = re.split(r'[\s,;]',txtstr)
+                            x_test.append([float(x) for x in txtlist])
         x_test = np.array(x_test).astype(np.float32)
         print(x_test.shape)
         return quick_predict(model_path,type = model_type,x_test = x_test)
@@ -376,9 +373,11 @@ def task_add(request):
         else:
             mod = service.mod
             test = Test_info.objects.create(tested_file= request.FILES['file'],description=description,service=service,mod=mod)
-            task_ID = new_task(test.id ,service.id)
+            task = new_task_thread.delay(test.id ,service.id)
+            print(task.id)
+            test.task_ID = str(task.id)
+            test.save()
             res['task_id'] = test.id
-            res['task_ID_celery'] = task_ID
     except:
         traceback.print_exc()
         print(request.FILES)
@@ -581,19 +580,11 @@ def start_test(test_file_id , service_id):
 
 # thread->task
 from .tasks import *
-def new_task(test_file_id, service_id):
-    print("new task: {}".format(test_file_id))
-    param_tuple = (test_file_id, service_id)
-    print('ready enter new_task_thread')
-    task_ID_content = new_task_thread.delay(param_tuple = param_tuple)
-
-    task_ID = str(task_ID_content)
-    print('task_ID',task_ID)
-    test_task =  Test_info.objects.get(id=test_file_id)
-    test_task.task_ID = task_ID
-    test_task.save()
-    return task_ID
-    # new_thread.start()
+# def new_task(test_file_id, service_id):
+#     print("new task: {}".format(test_file_id))
+#     param_tuple = (test_file_id, service_id)
+#     print('ready enter new_task_thread')
+#     new_task_thread.delay(param_tuple = param_tuple)
     
 def test_quick(request, model_id):
     if request.method == 'POST':
@@ -726,7 +717,12 @@ def test_change(request, test_id):
         test.description = description
         test.status = status
         if test.status != 'finished' and test.status != 'interrupted':
-            test.save()  
+            if status == 'interrupted':
+                from celery.app.control import Control
+                from MLPlatform.celery import celery_app
+                celery_control = Control(app=celery_app)
+                celery_control.revoke(test.task_id, terminate=True)
+            test.save()
     except:
         res = {"errmsg":"修改测试文件失败"}
         willContinue = False

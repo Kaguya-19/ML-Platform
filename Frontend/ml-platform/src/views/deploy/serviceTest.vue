@@ -13,14 +13,16 @@
       <template v-if="page=='info'">
         <!-- 基本信息 -->
         <a-card :bordered="false" title="Indicators">
-          <a-button @click="deploy" v-if="serviceStatus!='deployed'">Deploy</a-button>
-          <a-button @click="undeploy" v-if="serviceStatus!='undeployed'">Undeploy</a-button>
-          <a-button @click="pause" v-if="serviceStatus!='paused'">Pause</a-button>
+          <template #extra><a :href="&quot;/model/model-test?id=&quot;+model_id">Model</a></template>
+          <a-row>
           <a-descriptions title="How to use">
             <!-- TODO 完善 -->
             <a-descriptions-item>fast test:POST: input<br/>PUT status:'paused'\'deployed'\'undeployed'<br/>get info:GET'</a-descriptions-item>
           </a-descriptions>
-          <template #extra><a :href="&quot;/model/model-test?id=&quot;+model_id">Model</a></template>
+          <a-button @click="deploy" v-if="serviceStatus!='deployed'">Deploy</a-button>
+          <a-button @click="undeploy" v-if="serviceStatus!='undeployed'">Undeploy</a-button>
+          <a-button @click="pause" v-if="serviceStatus!='paused'">Pause</a-button>
+          </a-row>
           <br/>
           <a :href="&quot;http://&quot;+baseUrl+&quot;/ml/deploy/&quot;+deploy_id">{{ baseUrl }}/ml/deploy/{{ deploy_id }}</a>
           <a-table :columns="funcColumns" :data-source="funcData">
@@ -105,8 +107,7 @@
               <a-form @submit="taskFormSubmit" :form="form">
                 <a-form-item
                   label="Description"
-                  :labelCol="{ lg: { span: 7 }, sm: { span: 7 } }"
-                  :wrapperCol="{lg: {span: 10}, sm: {span: 17} }">
+                  >
                   <a-textarea
                     :auto-size="{ minRows: 3, maxRows: 10 }"
                     v-decorator="[
@@ -139,7 +140,6 @@
         </a-row>
       </template>
       <template v-if="page=='list'">
-        <a-row type="flex" :gutter="16">
           <s-table
             ref="table"
             size="default"
@@ -162,8 +162,6 @@
               </div>
             </template>
           </s-table>
-
-        </a-row>
       </template>
       <template v-if="page=='pro'">
         <a-row type="flex" :gutter="16">

@@ -31,7 +31,7 @@
             </a-col>
           </a-row>
           <a-row type="flex" style="margin-top: 20px">
-            <a-descriptions title="Description" v-if="modelDescription !== ''" :value="modelDescription">
+            <a-descriptions title="Description" v-if="modelDescription !== ''" :value="modelDescription" style="white-space: pre-wrap;">
               <a-descriptions-item>{{ modelDescription }}</a-descriptions-item>
             </a-descriptions>
           </a-row>
@@ -75,7 +75,7 @@
             :labelCol="{ lg: { span: 7 }, sm: { span: 7 } }"
             :wrapperCol="{ lg: { span: 10 }, sm: { span: 17 } }">
             <a-textarea
-              rows="4"
+              :auto-size="{ minRows: 3, maxRows: 10 }"
               v-decorator="[
                 'description',
                 {
@@ -89,12 +89,10 @@
             label="Model type"
             :labelCol="{ lg: { span: 7 }, sm: { span: 7 } }"
             :wrapperCol="{ lg: { span: 10 }, sm: { span: 17 } }">
-            <a-select
+            <a-input
+              disabled="true"
               v-decorator="['model_type', { rules: [{ required: true, message: 'Please choose your model type' }], initialValue: modelType }]">
-              <a-select-option value="pmml">PMML</a-select-option>
-              <a-select-option value="onnx">ONNX</a-select-option>
-              <a-select-option value="keras">Keras</a-select-option>
-            </a-select>
+            </a-input>
           </a-form-item>
           <!-- 模型文件上传 -->
           <a-form-item
@@ -108,10 +106,8 @@
               :multiplt="false"
               :max-count="1"
               v-decorator="['file']"
-              :show-upload-list="{ showRemoveIcon: false }">
-              <a-button>
-                <a-icon type="upload" /> Select File
-              </a-button>
+              :show-upload-list="{ showRemoveIcon: false }"
+              disabled="true">
             </a-upload>
           </a-form-item>
           <a-form-item :wrapperCol="{ span: 24 }" style="text-align: center">
@@ -125,7 +121,7 @@
           <a-col :span="12">
             <a-card title="Input" :bordered="false" v-if="isJSON">
               <template #extra><a @click.stop="toJSON">Form</a></template>
-              <a-textarea rows="6" v-model="jsonStr" />
+              <a-textarea :auto-size="{ minRows: 3, maxRows: 10 }" v-model="jsonStr" />
               <!-- <a-button @click.prevent="reset">Clear</a-button> -->
               <a-button type="primary" @click.stop="submitJSON" style="margin-left: 16px">Submit</a-button>
             </a-card>
@@ -155,7 +151,7 @@
                   </a-form-item>
                   <a-form-item v-else>
                     <a-textarea
-                      rows="2"
+                      :auto-size="{ minRows: 1, maxRows: 10 }"
                       v-decorator="[data.name, { rules: [{required: true, message: 'Please give input'}]}]"
                     />
                   </a-form-item>
@@ -168,8 +164,8 @@
           </a-col>
           <a-col :span="12">
             <a-card title="Output" :bordered="false">
-              <textarea row="10" style="border: none" :value="testRes">
-              </textarea>
+              <a-textarea :auto-size="{ minRows: 3, maxRows: 10 }" style="border: none" :defaultValue="testRes" v-if="!spinning">
+              </a-textarea>
             </a-card>
           </a-col>
         </a-row>
@@ -449,7 +445,7 @@ export default {
       } else {
         return data
       }
-    };
+    }
 
       return form
     },
@@ -499,6 +495,9 @@ export default {
         if (!err) {
           this.spinning = true
           Object.keys(values).forEach(key => {
+            if (this.isFile[key]) {
+              values[key] = values[key].file
+            }
             var val = values[key]
             console.log(val)
             if (typeof (val) === 'string' && val.startsWith('[') && val.endsWith(']')) {

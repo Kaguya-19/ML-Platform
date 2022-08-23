@@ -22,4 +22,17 @@ def preprocess_image(img_to_preprocess):
     processed_img = resize_img(grayscale)
     return processed_img
 
-preprocess_result['result'] = preprocess_image(image) ## 此句必须添加
+# preprocess_result['result'] = preprocess_image(image) ## 此句必须添加
+
+import numpy as np
+# import torch
+import cv2
+
+def defualt_process(img):
+    img = cv2.resize(img, (28, 28))
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    img = img / 255
+    img = np.ascontiguousarray(img)
+    img = img.astype(np.float)
+    img = img.reshape(1,1,28,28)
+    return np.array(img).astype(np.float32)

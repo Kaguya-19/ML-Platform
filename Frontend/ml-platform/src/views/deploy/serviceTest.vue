@@ -18,10 +18,10 @@
           <a-button @click="pause" v-if="serviceStatus!='paused'">Pause</a-button>
           <template #extra><a :href="&quot;/model/model-test?id=&quot;+model_id">Model</a></template>
           <br/>
-          <a :href="&quot;http://&quot;+baseUrl+&quot;/ml/deploy/&quot;+deploy_id">{{baseUrl}}/ml/deploy/{{ deploy_id }}</a>
+          <a :href="&quot;http://&quot;+baseUrl+&quot;/ml/deploy/&quot;+deploy_id">{{ baseUrl }}/ml/deploy/{{ deploy_id }}</a>
           <a-table :columns="funcColumns" :data-source="funcData">
           </a-table>
-          <a-descriptions title="Description" v-if="serviceDescription !== ''" :value="serviceDescription">
+          <a-descriptions title="Description" v-if="serviceDescription !== ''" :value="serviceDescription" style="white-space: pre-wrap;">
             <a-descriptions-item>{{ serviceDescription }}</a-descriptions-item>
           </a-descriptions>
         </a-card>
@@ -38,7 +38,7 @@
             <a-card title="Input" :bordered="false" v-if="isJSON">
               <template #extra><a @click.stop="toJSON">Form</a></template>
               <a-textarea
-                rows="6"
+                :auto-size="{ minRows: 3, maxRows: 10 }"
                 v-model="jsonStr"
               />
               <!-- <a-button @click.prevent="reset">Clear</a-button> -->
@@ -68,7 +68,7 @@
                   </a-form-item>
                   <a-form-item v-else>
                     <a-textarea
-                      rows="2"
+                      :auto-size="{ minRows: 1, maxRows: 10 }"
                       v-decorator="[data.name, { rules: [{required: true, message: 'Please give input'}]}]"
                     />
                   </a-form-item>
@@ -87,9 +87,9 @@
             </a-card>
           </a-col>
           <a-col :span="12">
-            <a-card title="Output" :bordered="false">
-              <textarea row="6" style="border: none" :value="testRes">
-              </textarea>
+            <a-card title="Output" :bordered="false" v-if="page=='test'">
+              <a-textarea :auto-size="{ minRows: 3, maxRows: 10 }" style="border: none" :defaultValue="testRes" v-if="!spinning">
+              </a-textarea>
             </a-card>
           </a-col>
         </a-row>
@@ -99,6 +99,20 @@
           <a-col :span="12">
             <a-card title="Input" :bordered="false">
               <a-form @submit="taskFormSubmit" :form="form">
+                <a-form-item
+                  label="Description"
+                  :labelCol="{ lg: { span: 7 }, sm: { span: 7 } }"
+                  :wrapperCol="{lg: {span: 10}, sm: {span: 17} }">
+                  <a-textarea
+                    :auto-size="{ minRows: 3, maxRows: 10 }"
+                    v-decorator="[
+                      'description',
+                      {
+                        rules: [{ required: false }],
+                        initialValue: ''
+                      }
+                    ]" />
+                </a-form-item>
                 <a-form-item label="File">
                   <a-upload
                     :before-upload="testBeforeUpload"
@@ -108,20 +122,6 @@
                   >
                     <a-button> <a-icon type="upload" /> Select File </a-button>
                   </a-upload>
-                </a-form-item>
-                <a-form-item
-                  label="Description"
-                  :labelCol="{ lg: { span: 7 }, sm: { span: 7 } }"
-                  :wrapperCol="{ lg: { span: 10 }, sm: { span: 17 } }">
-                  <a-textarea
-                    rows="4"
-                    v-decorator="[
-                      'description',
-                      {
-                        rules: [{ required: false }],
-                        initialValue: ''
-                      }
-                    ]" />
                 </a-form-item>
                 <a-form-item :wrapper-col="{ span: 14, offset: 15 }">
                   <!-- <a-button @click.prevent="reset">Clear</a-button> -->
@@ -165,17 +165,17 @@
         <a-row type="flex" :gutter="16">
           <a-col :span="12">
             <a-card title="Input" :bordered="false">
+              <a-description>Use python.<br/>Please name input:preprocess_data.input,<br/>name result:preprocess_data.result</a-description>
               <a-form @submit="funcSubmit" :form="form">
                 <a-form-item
                   label="Preprocess Function"
-                  :labelCol="{ lg: { span: 7 }, sm: { span: 7 } }"
-                  :wrapperCol="{ lg: { span: 10 }, sm: { span: 17 } }">
+                  :labelCol="{ lg: { span: 7 }, sm: { span: 7 } }">
                   <a-textarea
-                    rows="4"
+                    :auto-size="{ minRows: 3, maxRows: 20 }"
                     v-decorator="[
                       'func_str',
                       {
-                        rules: [{ required: true }],
+                        rules: [{ required: false }],
                         initialValue: func_str
                       }
                     ]" />
@@ -185,6 +185,12 @@
                   <a-button type="primary" htmlType="submit" style="margin-left: 16px">Submit</a-button>
                 </a-form-item>
               </a-form>
+            </a-card>
+          </a-col>
+          <a-col :span="12">
+            <a-card title="Example" :bordered="false" v-if="!spinning">
+              <a-textarea :auto-size="{ minRows: 3, maxRows: 10 }" style="border: none" :defaultValue="func_ex">
+              </a-textarea>
             </a-card>
           </a-col>
           <!-- <a-col :span="12">
@@ -328,6 +334,7 @@ export default {
     return {
       deploy_id: this.$route.query.id,
       model_id: 0,
+      serviceName: '',
       serviceStatus: '',
       serviceDescription: '',
       page: 'info',
@@ -344,6 +351,7 @@ export default {
       form: this.$form.createForm(this),
       testRes: 'Here is result!',
       func_str: '',
+      func_ex: 'import numpy as np\r\nimport cv2\r\n\r\ndef defualt_process(img):\r\n    img = cv2.imdecode(np.frombuffer(img.read(),np.uint8), cv2.IMREAD_COLOR)\r\n    img = cv2.resize(img, (28, 28))\r\n    img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)\r\n    img = img / 255\r\n    img = np.ascontiguousarray(img)\r\n    img = img.astype(np.float)\r\n    img = img.reshape(1,28,28)\r\n    return np.array(img).astype(np.float32)\r\n\r\npreprocess_data.result = defualt_process(preprocess_data.input)',
 
       curlStr: '',
       spinning: false,
@@ -534,7 +542,7 @@ export default {
       } else {
         return data
       }
-    };
+    }
 
       return form
     },
@@ -545,6 +553,9 @@ export default {
         if (!err) {
           this.spinning = true
           Object.keys(values).forEach(key => {
+            if (this.isFile[key]) {
+              values[key] = values[key].file
+            }
             var val = values[key]
             console.log(val)
             if (typeof (val) === 'string' && val.startsWith('[') && val.endsWith(']')) {
@@ -736,43 +747,57 @@ export default {
         }
       })
     },
-    formCurl () {
+    toBase64 (file) {
+      const reader = new FileReader()
+      reader.readAsDataURL(file)
+      return new Promise(
+      resolve => (reader.onloadend = () => resolve(reader.result))
+      )
+    },
+    async formCurl () {
+    async function t (values, v, thi) {
+          try {
+            const res = await thi.toBase64(values[v].file)
+            thi.curlStr += ` \\\n--form '${v}="${res}"'`
+            } catch (err) {
+            console.log(err)
+            thi.curlStr += ` \\\n--form '${v}="${values[v]}"'`
+          }
+          }
+    async function vva (values, thi) {
+          thi.curlStr = `curl --location --request POST 'http://${thi.baseUrl}/ml/deploy/${thi.deploy_id}'`
+          for (var v in values) {
+            await t(values, v, thi)
+          }
+          await thi.$confirm({
+            title: 'CURL',
+            content: thi.curlStr,
+            cancelText: 'Copy to clipborad',
+            onOk () {},
+            onCancel () {
+              thi.$copyText(thi.curlStr)
+            }
+          })
+        }
       this.form.validateFields((err, values) => {
         if (!err) {
-          this.curlStr = `curl --location --request POST 'http://${this.baseUrl}/ml/deploy/${this.deploy_id}'`
-          for (var v in values) {
-           try {
-            const reader = new FileReader()
-            reader.readAsDataURL(values[v].file)
-            reader.onload = () => {
-            this.curlStr += ` \\\n--form '${v}="${reader.result}"'`
-            }
-           } catch (err) {
-            console.log(err)
-            this.curlStr += ` \\\n--form '${v}="${values[v]}"'`
-           }
-          }
+          vva(values, this)
         }
-      })
-      const thi = this
-      this.$confirm({
-        title: 'CURL',
-        content: this.curlStr,
-        cancelText: 'Copy to clipborad',
-        onOk () {},
-        onCancel () {
-          thi.$copyText(thi.curlStr)
-        }
-      })
+        })
     },
     taskFormSubmit (e) {
       e.preventDefault()
-      console.log(this.form)
       this.form.validateFields((err, values) => {
         if (!err) {
           this.spinning = true
-          const formData = this.toFormData(values)
+          const formData = new FormData()
+          formData.append('file', values['file'].file)
+          for (var v in values) {
+           if (v !== 'file') {
+            formData.append(v, values[v])
+            }
           formData.append('service_id', this.deploy_id)
+          }
           console.log(values)
           axios({
             url: `/ml/test`,

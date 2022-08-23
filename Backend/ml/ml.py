@@ -273,7 +273,7 @@ class ONNXModel(BaseModel):
     def mining_function(self, y_test):
         algorithm = self.algorithm()
         if algorithm is not None:
-            if algorithm in ('LinearClassifier', 'SVMClassifier', 'TreeEnsembleClassifier'):
+            if algorithm in ('LinearClassifier', 'SVMClassifier', 'TreeEnsembleClassifier','NeuralNetwork'):
                 return FUNCTION_NAME_CLASSIFICATION
             if algorithm in ('LinearRegressor', 'SVMRegressor', 'TreeEnsembleRegressor'):
                 return FUNCTION_NAME_REGRESSION
@@ -315,8 +315,7 @@ class ONNXModel(BaseModel):
                 x_test = x_test.reshape(1,len(x_test))
             sess = self._get_inference_session()
             y_pred = None
-            if function_name in (FUNCTION_NAME_CLASSIFICATION, FUNCTION_NAME_REGRESSION) and len(
-                    sess.get_inputs()) == 1:
+            if len(sess.get_inputs()) == 1:
                 input_name = sess.get_inputs()[0].name
                 output = sess.run(None, {
                                   input_name: x_test.astype(np.float32)})
@@ -345,18 +344,31 @@ class ONNXModel(BaseModel):
             # convert to numpy array if not
             x_test = self._to_ndarray(x_test).astype(np.float32)
             sess = self._get_inference_session()
-            if function_name in (FUNCTION_NAME_CLASSIFICATION, FUNCTION_NAME_REGRESSION) and len(
-                    sess.get_inputs()) == 1:
+            inputs = sess.get_inputs()
+            if len(sess.get_inputs()) == 1:
                 input_name = sess.get_inputs()[0].name
-                output = [sess.run(None, {
-                    input_name: x_test[i]}) for i in range(x_test.shape[0])]
                 sess = self._get_inference_session()
                 output_fields = sess.get_outputs()
-                for i in range(len(output[0])):
-                    tmp_sample = {}
-                    for j in range(len(output_fields)):
-                        tmp_sample[output_fields[j].name] = output[i][j]
-                    result.append(tmp_sample)
+                if inputs[0].shape[0] == "batch_size":
+                    output = sess.run(None, {input_name: x_test})
+                    for i in range(x_test.shape[0]):
+                        tmp_sample = {}
+                        for j in range(len(output_fields)):
+                            if isinstance(output[j][i],np.ndarray):
+                                tmp_sample[output_fields[j].name] = output[j][i].tolist()
+                            else:
+                                tmp_sample[output_fields[j].name] = output[j][i]
+                        result.append(tmp_sample)
+                else:
+                    output = [sess.run(None, {input_name: x_test[i][np.newaxis,:]}) for i in range(x_test.shape[0])]
+                    for i in range(x_test.shape[0]):
+                        tmp_sample = {}
+                        for j in range(len(output_fields)):
+                            if isinstance(output[i][j],np.ndarray):
+                                tmp_sample[output_fields[j].name] = output[i][j].tolist()
+                            else:
+                                tmp_sample[output_fields[j].name] = output[i][j]
+                        result.append(tmp_sample)
                 return {
                     "result": result,
                 }

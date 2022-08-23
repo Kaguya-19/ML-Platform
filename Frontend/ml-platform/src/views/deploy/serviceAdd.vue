@@ -31,7 +31,7 @@
             :labelCol="{lg: {span: 7}, sm: {span: 7}}"
             :wrapperCol="{lg: {span: 10}, sm: {span: 17} }">
             <a-textarea
-              rows="4"
+              :auto-size="{ minRows: 3, maxRows: 10 }"
               v-decorator="[
                 'description',
                 {rules: [{ required: false }], initialValue: ''}

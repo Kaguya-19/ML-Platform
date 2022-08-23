@@ -20,7 +20,7 @@
             :labelCol="{lg: {span: 7}, sm: {span: 7}}"
             :wrapperCol="{lg: {span: 10}, sm: {span: 17} }">
             <a-textarea
-              rows="4"
+              :auto-size="{ minRows: 3, maxRows: 10 }"
               v-decorator="[
                 'description',
                 {rules: [{ required: false }], initialValue: ''}
@@ -51,6 +51,7 @@
               :file-list="fileList"
               :before-upload="beforeUpload"
               :multiplt="false"
+              :max-count="1"
               :remove="handleRemove"
               v-decorator="['file', {rules: [{required: true, message: 'Please upload your model file'}]}]"
             >

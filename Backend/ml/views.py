@@ -4,7 +4,7 @@ from threading import local
 from tkinter.filedialog import test
 from turtle import Turtle
 from django.shortcuts import render
-from django.http import JsonResponse
+from django.http import JsonResponse,HttpResponse
 from django.forms.models import model_to_dict
 from django.core.paginator import  Paginator
 from django.core.serializers import json
@@ -356,8 +356,9 @@ def task_add(request):
         else:
             mod = service.mod
             test = Test_info.objects.create(tested_file= request.FILES['file'],description=description,service=service,mod=mod)
-            new_task(test.id ,service.id)
+            task_ID = new_task(test.id ,service.id)
             res['task_id'] = test.id
+            res['task_ID_celery'] = task_ID
     except:
         traceback.print_exc()
         print(request.FILES)
@@ -396,134 +397,144 @@ import cv2
 import zipfile
 import numpy as np
 
-def start_test(test_file_id , service_id):
-    test_task =  Test_info.objects.get(id=test_file_id)
-    test_file = test_task.tested_file
-    test_task.threadID = threading.currentThread().ident
-    res = {}
-    test_task.result = res
-    test_task.save()
-    tested_model_type = test_task.mod.model_type
-    tested_model_path = test_task.mod.file.path
-    service = Service_info.objects.get(id=service_id)
-    print("In Thread")
-    try:
-        input_info = test_task.mod.input
-        if tested_model_type == 'pmml':
-            input_shape = len(input_info)
-        elif tested_model_type == 'onnx':
-            input_shape = input_info[0]['shape']
-            input_shape = input_shape[1:]
-        elif tested_model_type == 'keras':
-            input_shape = input_info[0]['shape']
-            input_shape = input_shape[1:]
-        else:
-            return
-        x_test=[]
-        if service.func_str != '':
-            global preprocess_data
-            func_str = service.func_str 
-        if '.zip' in test_file.name:
-            with zipfile.ZipFile(test_file.path, mode='r') as zfile:  # 只读方式打开压缩包
-                for name in zfile.namelist():  # 获取zip文档内所有文件的名称列表
-                    if service.func_str != '':
-                        with zfile.open(name, 'r') as file_to_read:
-                            print('fuck1') 
-                            preprocess_data.input = file_to_read
-                            preprocess_data.result = {}
-                            exec(func_str)
-                            # preprocessed_res = preprocess_result['result']
-                            x_test.append(preprocess_data.result)
-                    else:
-                        if '.jpg' in name:
-                            with zfile.open(name, mode='r') as image_file:
-                                content = image_file.read()  # 一次性读入整张图片信息
-                                image = np.asarray(bytearray(content), dtype='uint8')
-                                image = cv2.imdecode(image, cv2.IMREAD_COLOR)
-                                x_test.append(defualt_process(image))
-                                if image.shape != tuple(input_shape):
-                                    res = {"errmsg":"输入图片不适配此模型"}
-                                    test_task.result = res
-                                    test_task.status = 'interrupted'
-                                    test_task.save()
-                                    return
-                                # cv2.imshow('image', image)
-                        elif '.txt' in name:
-                            with zfile.open(name, 'r') as file_to_read:  # 打开文件，将其值赋予file_to_read
-                                while True:
-                                    lines = file_to_read.readline()  # 整行读取数据
-                                    if not lines:  # 若该行为空
-                                        break  # 喀嚓
-                                    else:
-                                        this_lines = lines.split()
-                                        number_this_lines = [float(x) for x in this_lines]
-                                        if len(number_this_lines) != np.prod(input_shape):
-                                            res = {"errmsg":"输入的文本行数据量不适配此模型"}
-                                            test_task.result = res
-                                            test_task.status = 'interrupted'
-                                            test_task.save()
-                                            return
-                                        x_test.append(list(np.array(number_this_lines).reshape(tuple(input_shape))))
-                zfile.close()
-        elif '.csv' in test_file.name:
-            with open(test_file.path, mode='r', encoding='utf-8') as f:
-                if service.func_str != '': 
-                    preprocess_data.input = f
-                    preprocess_data.result = {}
-                    exec(func_str)
-                    # preprocessed_res = preprocess_result['result']
-                    x_test.append(preprocess_data.result)
-                else:
-                    input_file_string = f.read()
-                    input_file_list = input_file_string.split('\n')
-                    # 发现有时候最后会多一行，去掉
-                    if input_file_list[-1] == "":
-                        input_file_list.pop()
-                    for line in input_file_list:
-                        # 使用zip将两组数据打包成字典
-                        tmp_data = line.split(',')
-                        number_tmp_data = [float(x) for x in tmp_data]
-                        if len(number_tmp_data) != np.prod(input_shape):
-                            continue
-                        x_test.append(number_tmp_data)
-        else:
-            res = {"errmsg":"不支持处理该类型文件"}
-            test_task.result = res
-            test_task.status = 'interrupted'
-            test_task.save()
-            return
-        x_test = np.array(x_test).astype(np.float32)
-        print(x_test)
-        res = batch_predict(path = tested_model_path, type = tested_model_type,x_test = x_test)
-    except:
-        import traceback
-        res = {"errmsg":traceback.format_exc()}
-        test_task.result = res
-        test_task.status = 'interrupted'
-        test_task.save()
-        return
-    test_task.result = res
-    test_task.status = 'finished'
-    test_task.recent_modified_time = timezone.now()
-    test_task.end_time = timezone.now()
-    test_task.save()
-    _,deltaTime = divmod((test_task.end_time - test_task.add_time).total_seconds(), 60)
-    service.average_use_time = \
-        (service.average_use_time * service.use_times + deltaTime)/(service.use_times + 1)
-    service.use_times = service.use_times + 1
-    if deltaTime > service.max_use_time:
-        service.max_use_time = deltaTime
-    if deltaTime < service.min_use_time:
-        service.min_use_time = deltaTime
-    service.save()
-    test_task.save()        
-    return
+# def start_test(test_file_id , service_id):
+#     test_task =  Test_info.objects.get(id=test_file_id)
+#     test_file = test_task.tested_file
+#     test_task.thread_ID = threading.currentThread().ident
+#     res = {}
+#     test_task.result = res
+#     test_task.save()
+#     tested_model_type = test_task.mod.model_type
+#     tested_model_path = test_task.mod.file.path
+#     service = Service_info.objects.get(id=service_id)
+#     print("In Thread")
+#     try:
+#         input_info = test_task.mod.input
+#         if tested_model_type == 'pmml':
+#             input_shape = len(input_info)
+#         elif tested_model_type == 'onnx':
+#             input_shape = input_info[0]['shape']
+#             input_shape = input_shape[1:]
+#         elif tested_model_type == 'keras':
+#             input_shape = input_info[0]['shape']
+#             input_shape = input_shape[1:]
+#         else:
+#             return
+#         x_test=[]
+#         if service.func_str != '':
+#             global preprocess_data
+#             func_str = service.func_str 
+#         if '.zip' in test_file.name:
+#             with zipfile.ZipFile(test_file.path, mode='r') as zfile:  # 只读方式打开压缩包
+#                 for name in zfile.namelist():  # 获取zip文档内所有文件的名称列表
+#                     if service.func_str != '':
+#                         with zfile.open(name, 'r') as file_to_read:
+#                             print('fuck1') 
+#                             preprocess_data.input = file_to_read
+#                             preprocess_data.result = {}
+#                             exec(func_str)
+#                             # preprocessed_res = preprocess_result['result']
+#                             x_test.append(preprocess_data.result)
+#                     else:
+#                         if '.jpg' in name:
+#                             with zfile.open(name, mode='r') as image_file:
+#                                 content = image_file.read()  # 一次性读入整张图片信息
+#                                 image = np.asarray(bytearray(content), dtype='uint8')
+#                                 image = cv2.imdecode(image, cv2.IMREAD_COLOR)
+#                                 x_test.append(defualt_process(image))
+#                                 if image.shape != tuple(input_shape):
+#                                     res = {"errmsg":"输入图片不适配此模型"}
+#                                     test_task.result = res
+#                                     test_task.status = 'interrupted'
+#                                     test_task.save()
+#                                     return
+#                                 # cv2.imshow('image', image)
+#                         elif '.txt' in name:
+#                             with zfile.open(name, 'r') as file_to_read:  # 打开文件，将其值赋予file_to_read
+#                                 while True:
+#                                     lines = file_to_read.readline()  # 整行读取数据
+#                                     if not lines:  # 若该行为空
+#                                         break  # 喀嚓
+#                                     else:
+#                                         this_lines = lines.split()
+#                                         number_this_lines = [float(x) for x in this_lines]
+#                                         if len(number_this_lines) != np.prod(input_shape):
+#                                             res = {"errmsg":"输入的文本行数据量不适配此模型"}
+#                                             test_task.result = res
+#                                             test_task.status = 'interrupted'
+#                                             test_task.save()
+#                                             return
+#                                         x_test.append(list(np.array(number_this_lines).reshape(tuple(input_shape))))
+#                 zfile.close()
+#         elif '.csv' in test_file.name:
+#             with open(test_file.path, mode='r', encoding='utf-8') as f:
+#                 if service.func_str != '': 
+#                     preprocess_data.input = f
+#                     preprocess_data.result = {}
+#                     exec(func_str)
+#                     # preprocessed_res = preprocess_result['result']
+#                     x_test.append(preprocess_data.result)
+#                 else:
+#                     input_file_string = f.read()
+#                     input_file_list = input_file_string.split('\n')
+#                     # 发现有时候最后会多一行，去掉
+#                     if input_file_list[-1] == "":
+#                         input_file_list.pop()
+#                     for line in input_file_list:
+#                         # 使用zip将两组数据打包成字典
+#                         tmp_data = line.split(',')
+#                         number_tmp_data = [float(x) for x in tmp_data]
+#                         if len(number_tmp_data) != np.prod(input_shape):
+#                             continue
+#                         x_test.append(number_tmp_data)
+#         else:
+#             res = {"errmsg":"不支持处理该类型文件"}
+#             test_task.result = res
+#             test_task.status = 'interrupted'
+#             test_task.save()
+#             return
+#         x_test = np.array(x_test).astype(np.float32)
+#         print(x_test)
+#         res = batch_predict(path = tested_model_path, type = tested_model_type,x_test = x_test)
+#     except:
+#         import traceback
+#         res = {"errmsg":traceback.format_exc()}
+#         test_task.result = res
+#         test_task.status = 'interrupted'
+#         test_task.save()
+#         return
+#     test_task.result = res
+#     test_task.status = 'finished'
+#     test_task.recent_modified_time = timezone.now()
+#     test_task.end_time = timezone.now()
+#     test_task.save()
+#     _,deltaTime = divmod((test_task.end_time - test_task.add_time).total_seconds(), 60)
+#     service.average_use_time = \
+#         (service.average_use_time * service.use_times + deltaTime)/(service.use_times + 1)
+#     service.use_times = service.use_times + 1
+#     if deltaTime > service.max_use_time:
+#         service.max_use_time = deltaTime
+#     if deltaTime < service.min_use_time:
+#         service.min_use_time = deltaTime
+#     service.save()
+#     test_task.save()        
+#     return
 
+# thread->task
+from .tasks import *
 def new_task(test_file_id, service_id):
     print("new task: {}".format(test_file_id))
     param_tuple = (test_file_id, service_id)
-    new_thread = Thread(target=start_test, args=param_tuple)
-    new_thread.start()
+    print('ready enter new_task_thread')
+    task_ID_content = new_task_thread.delay(param_tuple = param_tuple)
+
+    task_ID = str(task_ID_content)
+    print('task_ID',task_ID)
+    test_task =  Test_info.objects.get(id=test_file_id)
+    test_task.task_ID = task_ID
+    test_task.save()
+    return task_ID
+    # new_thread.start()
     
 def test_quick(request, model_id):
     if request.method == 'POST':
@@ -586,7 +597,7 @@ def test_all(request):
 def test_api(request):
     if request.method == 'GET':
         return test_all(request)
-    elif request.method == 'POST':
+    elif request.method ==  'POST':
         return task_add(request)
     else:
         return JsonResponse({"errmsg":"请求有误"},status=400)
@@ -751,13 +762,24 @@ def service_all(request):
     except:
         return JsonResponse({"errmsg":"获取部署信息失败"},status=400)
 
+from celery.app.control import Control
+from MLPlatform.celery import celery_app  
 def service_delete(request, service_id):
     res = dict()
     willContinue = True
     try:
-        service = Service_info.objects.get(id=service_id)
+        service = Service_info.objects.get(id=service_id) 
+        tests = service.test_info_set.all()   
+        celery_control = Control(app=celery_app)
+        # TODO  
+        for test in tests:
+            task_ID = test.task_ID
+            test.status = 'interrupted'
+            test.save()
+            celery_control.revoke(task_ID, terminate=True)
+
         service.delete()
-        {"id":service_id}
+        res = {"id":service_id}
     except:
         res = {"errmsg":"删除部署失败"}
         willContinue = False
@@ -816,6 +838,37 @@ def service_change(request, service_id):
     else:
         resp.status_code = 400
     return resp    
+
+
+# Create your views here.
+ 
+def task_add_view(request):
+    task_id = add.delay(100,200)
+    print(task_id)
+    tmp = str(task_id)
+    res = {"task_id": tmp}
+    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
+    return resp
+
+from celery import result
+
+
+def get_result_by_taskid(request):
+    task_id = request.GET.get('task_id')
+    print('taskid',task_id)
+
+	# 异步执行
+    ar = result.AsyncResult(task_id)
+ 
+    if ar.ready():
+        return JsonResponse({'status': ar.state, 'result': ar.get()})
+    else:
+        # return JsonResponse({'status': ar.state, 'result': ''})
+        return HttpResponse(f'hello')
+
+
+
+
 
 # 测试
 if __name__ == "__main__":

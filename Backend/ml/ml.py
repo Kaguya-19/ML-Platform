@@ -12,6 +12,15 @@ from pyspark.ml import PipelineModel
 import tensorflow as tf
 from pypmml import Model
 
+def nP2default(obj):
+    if isinstance(obj, np.integer):
+        return int(obj)
+    if isinstance(obj, np.floating):
+        return float(obj)
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    return obj
+
 FUNCTION_NAME_CLASSIFICATION = 'classification'
 FUNCTION_NAME_REGRESSION = 'regression'
 FUNCTION_NAME_CLUSTERING = 'clustering'
@@ -324,7 +333,7 @@ class ONNXModel(BaseModel):
                 for i in range(len(output_fields)):
                     result[output_fields[i].name] = output[i][0]
                 return {
-                    "result": str([result]),
+                    "result": [result],
                 }
             else:
                 return {}
@@ -354,24 +363,22 @@ class ONNXModel(BaseModel):
                     for i in range(x_test.shape[0]):
                         tmp_sample = {}
                         for j in range(len(output_fields)):
-                            if isinstance(output[j][i],np.ndarray) or isinstance(output[j][i],np.float64):
-                                tmp_sample[output_fields[j].name] = output[j][i].tolist()
-                            else:
-                                tmp_sample[output_fields[j].name] = output[j][i]
+                            # if isinstance(output[j][i],np.ndarray) or isinstance(output[j][i],np.float64):
+                            #     tmp_sample[output_fields[j].name] = output[j][i].tolist()
+                            # else:
+                                tmp_sample[output_fields[j].name] = nP2default(output[j][i])
                         result.append(tmp_sample)
                 else:
                     output = [sess.run(None, {input_name: x_test[i][np.newaxis,:]}) for i in range(x_test.shape[0])]
                     for i in range(x_test.shape[0]):
                         tmp_sample = {}
                         for j in range(len(output_fields)):
-                            if isinstance(output[i][j],np.ndarray)or isinstance(output[i][j],np.float64):
-                                tmp_sample[output_fields[j].name] = output[i][j].tolist()
-                            else:
-                                tmp_sample[output_fields[j].name] = output[i][j]
+                            # if isinstance(output[i][j],np.ndarray):
+                            #     tmp_sample[output_fields[j].name] = output[i][j].tolist()
+                            # else:
+                                tmp_sample[output_fields[j].name] = nP2default(output[i][j])
                         result.append(tmp_sample)
-                return {
-                    "result": str(result),
-                }
+                return { "result": result}
             else:
                 return {}
 
@@ -539,7 +546,7 @@ class PMMLModel(BaseModel):
                 for i in range(len(output_fields)):
                     result[output_fields[i].name] = y_pred.iat[0, i]
                 return {
-                    "result": str(result),
+                    "result": result,
                 }
 
             except Exception as e:
@@ -562,11 +569,9 @@ class PMMLModel(BaseModel):
                     y_pred = self.pmml_model.predict(x_test)
                     y_pred = pd.DataFrame(y_pred)
                     for i in range(len(output_fields)):
-                        tmp[output_fields[i].name] = y_pred.iat[0, i]
+                        tmp[output_fields[i].name] = nP2default(y_pred.iat[0, i])
                     result.append(tmp)
-                return {
-                    "result": str(result),
-                }
+                return { "result": result}
 
             except Exception as e:
                 import traceback
@@ -805,7 +810,7 @@ class KerasModel(BaseModel):
                 })
 
             return {
-                "result": str(result)
+                "result": result
             }
 
         except Exception as e:
@@ -831,15 +836,12 @@ class KerasModel(BaseModel):
                     name = x.name
                     if hasattr(self.model, 'output_names'):
                         name = self.model.output_names[idx]
-                    if isinstance(y_pred.iat[i, idx],np.ndarray) or isinstance(y_pred.iat[i, idx],np.float64):
-                        tmp[name] = y_pred.iat[i, idx].tolist()
-                    else:        
-                        tmp[name] = y_pred.iat[i, idx]
+                    # if isinstance(y_pred.iat[i, idx],np.ndarray) or isinstance(y_pred.iat[i, idx],np.float64):
+                    #     tmp[name] = y_pred.iat[i, idx].tolist()
+                    # else:        
+                        tmp[name] = nP2default(y_pred.iat[i, idx])
                 result.append(tmp)
-
-            return {
-                "result": str(result)
-            }
+            return { "result": result}
 
         except Exception as e:
             import traceback

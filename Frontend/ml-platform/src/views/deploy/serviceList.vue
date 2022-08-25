@@ -1,5 +1,5 @@
 <template>
-  <page-header-wrapper :title="false" :content="$t('model_list_guideline')">
+  <page-header-wrapper :title="false">
     <a-card :bordered="false">
       <div class="table-page-search-wrapper">
         <a-form layout="inline">

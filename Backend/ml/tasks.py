@@ -173,7 +173,7 @@ def new_task_thread(test_file_id , service_id):
     test_task.recent_modified_time = timezone.now()
     test_task.end_time = timezone.now()
     test_task.save()
-    _,deltaTime = divmod((test_task.end_time - test_task.add_time).total_seconds(), 60)
+    deltaTime = (test_task.end_time - test_task.add_time).total_seconds()*1000
     service.average_use_time = \
         (service.average_use_time * service.use_times + deltaTime)/(service.use_times + 1)
     service.use_times = service.use_times + 1

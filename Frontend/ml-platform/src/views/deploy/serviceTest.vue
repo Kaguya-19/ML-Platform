@@ -1,5 +1,5 @@
 <template>
-  <page-header-wrapper :title="serviceName" :content="$t('model_test_guideline')">
+  <page-header-wrapper :title="serviceName">
     <!-- 选择菜单：部署概述/测试 -->
     <a-menu mode="horizontal">
       <a-menu-item @click="showPage('info')">Service infomation</a-menu-item>
@@ -271,7 +271,7 @@ const funcColumns = [
     key: 'add_time'
   },
   {
-    title: 'Average(s)',
+    title: 'Average(ms)',
     key: 'average_use_time',
     dataIndex: 'average_use_time'
   },
@@ -281,12 +281,12 @@ const funcColumns = [
   //   dataIndex: 'medResTime'
   // },
     {
-    title: 'Min(s)',
+    title: 'Min(ms)',
     key: 'minResTime',
     dataIndex: 'min_use_time'
   },
     {
-    title: 'Max(s)',
+    title: 'Max(ms)',
     key: 'maxResTime',
     dataIndex: 'max_use_time'
   },

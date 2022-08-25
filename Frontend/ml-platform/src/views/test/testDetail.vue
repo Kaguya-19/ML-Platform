@@ -1,5 +1,5 @@
 <template>
-  <page-header-wrapper title="Test Detail" :content="$t('model_test_guideline')">
+  <page-header-wrapper title="Test Detail">
     <!-- 选择菜单：模型概述/测试 -->
     <!-- 模型概述 -->
     <template>

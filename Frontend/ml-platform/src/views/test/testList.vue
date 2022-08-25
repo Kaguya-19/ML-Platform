@@ -1,5 +1,5 @@
 <template>
-  <page-header-wrapper :title="false" :content="$t('model_list_guideline')">
+  <page-header-wrapper :title="false">
     <a-card :bordered="false">
       <div class="table-page-search-wrapper">
         <a-form layout="inline">
@@ -77,12 +77,12 @@
         <a-dropdown v-if="selectedRowKeys.length > 0">
           <template #overlay>
             <a-menu>
-              <a-menu-item @click="deploys">
-                Run
-              </a-menu-item>
-              <a-menu-item @click="pauses">
-                Pause
-              </a-menu-item>
+              // <a-menu-item @click="deploys">
+              //   Run
+              // </a-menu-item>
+              // <a-menu-item @click="pauses">
+              //   Pause
+              // </a-menu-item>
               <a-menu-item @click="stops">
                 Stop
               </a-menu-item>
@@ -230,7 +230,7 @@ export default {
       const thi = this
       this.$confirm({
         title: 'Warining',
-        content: `Delete ${row.name}?`,
+        content: `Delete ${row.id}?`,
         okType: 'danger',
         onOk () {
           axios({
@@ -412,7 +412,7 @@ export default {
       const thi = this
       this.$confirm({
         title: 'Warning',
-        content: `Stop ${row.name}?`,
+        content: `Stop ${row.id}?`,
         okType: 'danger',
         onOk () {
           const formData = new FormData()

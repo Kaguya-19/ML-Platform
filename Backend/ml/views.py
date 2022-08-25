@@ -130,7 +130,7 @@ def model_add(request,add_mode = 'single'):
                     willContinue = False
             
         except:
-            res = {"errmsg":traceback.format_exc()}
+            res = {"errmsg":"上传失败"}
             willContinue = False
     resp = JsonResponse(res)
     if willContinue:
@@ -705,17 +705,16 @@ def test_delete(request, test_id):
     willContinue = True
     try:
         tested_file = Test_info.objects.get(id=test_id)
-        if test.status != 'finished' and test.status != 'interrupted':
+        if tested_file.status != 'finished' and tested_file.status != 'interrupted':
             from celery.app.control import Control
             from MLPlatform.celery import celery_app
             celery_control = Control(app=celery_app)
-            celery_control.revoke(test.task_id, terminate=True)
+            celery_control.revoke(tested_file.task_ID, terminate=True)
         os.remove(tested_file.tested_file.path)
         tested_file.delete()
         res = {"test_id":test_id}
     except:
-        # res = {"errmsg":"删除测试任务失败"}
-        res = {"errmsg":traceback.format_exc()}
+        res = {"errmsg":"删除测试任务失败"}
         willContinue = False
     resp = JsonResponse(res)
     if willContinue:
@@ -730,7 +729,7 @@ def test_change(request, test_id):
     print(request.PUT)
     try:
         test = Test_info.objects.get(id=test_id)
-        description = request.PUT.get('description')
+        description = request.PUT.get('description',test.description)
         status = request.PUT.get('status',test.status)
         # TODO 更改状态
         # 此处不能改文件
@@ -744,10 +743,10 @@ def test_change(request, test_id):
                 from celery.app.control import Control
                 from MLPlatform.celery import celery_app
                 celery_control = Control(app=celery_app)
-                celery_control.revoke(test.task_id, terminate=True)
+                celery_control.revoke(test.task_ID, terminate=True)
             test.save()
     except:
-        res = {"errmsg":"修改测试文件失败"}
+        res = {"errmsg":"修改失败"}
         willContinue = False
     
     res['description'] = description

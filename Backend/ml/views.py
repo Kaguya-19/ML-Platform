@@ -302,7 +302,7 @@ def fast_test(request,id,type='model'):
                                     x_test = defualt_process(x_test)
                                     #process img
                                     break
-                                elif value.startswith('data:application/octet-stream'):
+                                elif value.startswith('data:application') or value.startswith('data:text'):
                                     while True:
                                         txtstr = file.encode('utf-8')
                                         import re

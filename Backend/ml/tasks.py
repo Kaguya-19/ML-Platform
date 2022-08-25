@@ -13,8 +13,13 @@ from django.utils import timezone
 from .ml import batch_predict,quick_predict
 from threading import local
 import re
+import os
 
 preprocess_data=local()
+
+def makeKeraspath(path):
+    current_work_dir = os.path.dirname(path)
+    return current_work_dir + '/' + os.path.basename(path)[:-4]
 
 @shared_task
 def new_task_thread(test_file_id , service_id):
@@ -24,6 +29,8 @@ def new_task_thread(test_file_id , service_id):
     test_task.result = res
     test_task.save()
     tested_model_type = test_task.mod.model_type
+    if tested_model_type == 'keras':
+        model_path = makeKeraspath(model_path)
     tested_model_path = test_task.mod.file.path
     service = Service_info.objects.get(id=service_id)
     print("In Thread")

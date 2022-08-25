@@ -7,10 +7,10 @@
       <a-card :bordered="false">
         <template #extra><a :href="&quot;/deploy/deploy-test?id=&quot;+service_id">Service</a></template>
         <a :href="&quot;/model/model-test?id=&quot;+model_id">Model</a>
-        <a style="margin-left: 30px" :href="&quot;http://&quot;+testUrl">Test File</a>
+        <a style="margin-left: 30px" :href="testUrl">Test File</a>
         <br/><br/>
         <!-- <a-button @click="deploy" v-if="testStatus=='paused'">Run</a-button> -->
-        <a-button @click="undeploy" v-if="testStatus=='run'">Stop</a-button>
+        <a-button @click="stop" v-if="testStatus=='run'">Stop</a-button>
         <!-- <a-button @click="pause" v-if="testStatus=='run'">Pause</a-button> -->
 
         <a-row type="flex">
@@ -129,7 +129,7 @@ export default {
               try {
                 thi.$message.error(err.response.data.errmsg)
               } catch (err) {
-                thi.$message.error('undeploy failed.')
+                thi.$message.error('Stop failed.')
                 }
             })
         }

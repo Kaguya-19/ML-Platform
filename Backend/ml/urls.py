@@ -11,6 +11,7 @@ urlpatterns = [
     # 部署
     path('deploy',views.service_api),
     path('deploy/<int:service_id>',views.service_info_api),
+    path('deploy/<int:deploy_id>/task',views.task_add),
     path('celery/get',views.get_result_by_taskid),
     path('celery/test',views.task_add_view)
 ]

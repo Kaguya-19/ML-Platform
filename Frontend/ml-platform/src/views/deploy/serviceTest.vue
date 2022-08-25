@@ -16,8 +16,8 @@
           <template #extra><a :href="&quot;/model/model-test?id=&quot;+model_id">Model</a></template>
           <a-row>
           <a-descriptions title="How to use">
-            <!-- TODO 完善 -->
-            <a-descriptions-item>fast test:POST: input<br/>PUT status:'paused'\'deployed'\'undeployed'<br/>get info:GET'</a-descriptions-item>
+            <a-descriptions-item>wait return:add/task at end of url,POST: file:yourfile<br/>fast test:POST: input<br/>PUT status:'paused'\'deployed'\'undeployed'<br/>get info:GET
+            </a-descriptions-item>
           </a-descriptions>
           <a-button @click="deploy" v-if="serviceStatus!='deployed'">Deploy</a-button>
           <a-button @click="undeploy" v-if="serviceStatus!='undeployed'">Undeploy</a-button>

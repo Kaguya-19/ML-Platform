@@ -40,6 +40,9 @@ def model_add_singlemodel(name,description,model_type,file):
 import os
 from .ml import get_model_info
 
+def makeKeraspath(path):
+    current_work_dir = os.path.dirname(path)
+    return current_work_dir + '/' + os.path.basename(path)[:-4]
 
 class NpEncoder(json.DjangoJSONEncoder):
     def default(self, obj):
@@ -72,59 +75,64 @@ def model_add(request,add_mode = 'single'):
             name = request.POST.get('name')
             description = request.POST.get('description','')
             model_type = request.POST.get('model_type')
+            if model_type == 'keras':
+                add_mode = 'multiple'
             if add_mode == 'single':
                 model = model_add_singlemodel(name,description,model_type,file = request.FILES['file'])
-                info = get_model_info(model.file.path, model.model_type)
-                if "stderr" in info:
+                path = model.file.path
+            else:
+                # 解压zip/rar的模型文件并保存至model
+                model = model_add_singlemodel(name,description,model_type,file = request.FILES['file'])
+                file = model.file
+                tmp_models_dir = makeKeraspath(file.path)
+                if not os.path.exists(tmp_models_dir):
+                    os.makedirs(tmp_models_dir)
+                src_file = request.FILES['file']
+                file_type = '.zip'
+                if file_type == '.zip':
+                    # 需要安装zip包：pip install zipp
+                    zip_file = zipfile.ZipFile(src_file)
+                    for names in zip_file.namelist():
+                        zip_file.extract(names, tmp_models_dir)        
+                    zip_file.close()
+                path = tmp_models_dir
+                # elif file_type == '.rar':
+                #     # 需要安装rar包：pip install rarfile
+                #     rar = rarfile.RarFile(src_file)
+                #     os.chdir(tmp_models_dir)
+                #     rar.extractall()
+                #     rar.close()
+                # files=os.listdir(tmp_models_dir)
+                # for i in files:
+                #     file_path=os.path.join(tmp_models_dir+i)
+                #     f = open(file_path)
+                #     file = f.read()
+                #     f.close()
+                #     model_add_singlemodel(file)
+                # pass
+            info = get_model_info(path, model.model_type)
+            if "stderr" in info:
+                res = {"errmsg":"模型不合法"}
+                os.remove(model.file.path)
+                model.delete()
+                willContinue = False
+            else:
+                try:
+                    model.input=info['input']
+                    model.output=info['output']
+                    model.algorithm=info['algorithm']
+                    model.engine=info['engine']
+                    model.save()
+                except:
                     res = {"errmsg":"模型不合法"}
                     os.remove(model.file.path)
                     model.delete()
                     willContinue = False
-                else:
-                    try:
-                        model.input=info['input']
-                        model.output=info['output']
-                        model.algorithm=info['algorithm']
-                        model.engine=info['engine']
-                        model.save()
-                    except:
-                        res = {"errmsg":"模型不合法"}
-                        os.remove(model.file.path)
-                        model.delete()
-                        willContinue = False
-            # else:
-            #     # 解压zip/rar的模型文件并保存至model
-            #     current_work_dir = os.path.dirname (__file__)
-            #     tmp_models_dir = current_work_dir + '/tmpTest'
-            #     if not os.path.exists(tmp_models_dir):
-            #         os.makedirs(dir)
-            #     src_file = request.FILES['file']
-            #     file_type = '.zip'
-            #     if file_type == '.zip':
-            #         # 需要安装zip包：pip install zipp
-            #         zip_file = zipfile.ZipFile(src_file)
-            #         for names in zip_file.namelist():
-            #             zip_file.extract(names, tmp_models_dir)
-            #         zip_file.close()
-            #     elif file_type == '.rar':
-            #         # 需要安装rar包：pip install rarfile
-            #         rar = rarfile.RarFile(src_file)
-            #         os.chdir(tmp_models_dir)
-            #         rar.extractall()
-            #         rar.close()
-            #     # TODO 多线程     
-            #     files=os.listdir(tmp_models_dir)
-            #     for i in files:
-            #         file_path=os.path.join(tmp_models_dir+i)
-            #         f = open(file_path)
-            #         file = f.read()
-            #         f.close()
-            #         model_add_singlemodel(file)
-            #     pass
+            
         except:
-            res = {"errmsg":"上传模型失败"}
+            res = {"errmsg":traceback.format_exc()}
             willContinue = False
-    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
+    resp = JsonResponse(res)
     if willContinue:
         resp.status_code = 200
     else:
@@ -178,12 +186,12 @@ def model_info(request, model_id):
     try:
         model = Model_info.objects.get(id=model_id)
         res = model_to_dict(model)
-        res['file']=BASE_URL+res['file'].url
+        res['file']=res['file'].url
         res['add_time'] = model.add_time.strftime("%Y-%m-%d %H:%M")
     except:
         res = {"errmsg":"读取模型信息失败"}
         willContinue = False
-    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
+    resp = JsonResponse(res)
     if willContinue:
         resp.status_code = 200
     else:
@@ -200,7 +208,7 @@ def model_delete(request, model_id):
     except:
         res = {"errmsg":"读取模型信息失败"}
         willContinue = False
-    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
+    resp = JsonResponse(res)
     if willContinue:
         resp.status_code = 200
     else:
@@ -246,7 +254,7 @@ def model_change(request, model_id):
     except:
             res = {"errmsg":"上传模型失败"}
             willContinue = False
-    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
+    resp = JsonResponse(res)
     if willContinue:
         resp.status_code = 200
     else:
@@ -262,6 +270,8 @@ def fast_test(request,id,type='model'):
     model_path = model.file.path
     model_type = model.model_type
     input_info = model.input
+    if model_type == 'keras':
+        model_path = makeKeraspath(model_path)
     global preprocess_data
     x_test = []
     test_data = request.POST
@@ -339,7 +349,7 @@ def test_add(request,model_id):
     except:
         res = {"errmsg":"Request error"}
         willContinue = False
-    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False},encoder = NpEncoder)
+    resp = JsonResponse(res,encoder = NpEncoder)
     if willContinue:
         resp.status_code = 200
     else:
@@ -359,20 +369,20 @@ def task_fast_add(request, service_id):
     except:
         res = {"errmsg":"Request error"}
         willContinue = False
-    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False},encoder = NpEncoder)
+    resp = JsonResponse(res,encoder = NpEncoder)
     if willContinue:
         resp.status_code = 200
     else:
         resp.status_code = 400
     return resp
 
-def task_add(request):
+def task_add(request,deploy_id=0):
     res = dict()
     willContinue = True
 
     try:
         description = request.POST.get('description','')
-        service_id = request.POST.get('service_id')
+        service_id = request.POST.get('service_id',deploy_id)
         service = Service_info.objects.get(id=service_id)
         if service.status != 'deployed':
             res = {"errmsg":"Service isn't deployed."}
@@ -398,7 +408,7 @@ def task_add(request):
             pass
         res = {"errmsg":"Request error"}
         willContinue = False
-    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False},encoder = NpEncoder)
+    resp = JsonResponse(res,encoder = NpEncoder)
     if willContinue:
         resp.status_code = 200
     else:
@@ -676,14 +686,14 @@ def test_info(request, test_id):
         test = Test_info.objects.get(id=test_id)
         res = model_to_dict(test)
         if test.tested_file != None:
-            res['tested_file']=BASE_URL+res['tested_file'].url
+            res['tested_file']=res['tested_file'].url
         res['add_time'] = test.add_time.strftime("%Y-%m-%d %H:%M")
         res['recent_modified_time'] = test.recent_modified_time.strftime("%Y-%m-%d %H:%M")
         res['end_time'] = test.end_time.strftime("%Y-%m-%d %H:%M")
     except:
         res = {"errmsg":"读取测试信息失败，可能您输入的测试文件已被删除"}
         willContinue = False
-    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
+    resp = JsonResponse(res)
     if willContinue:
         resp.status_code = 200
     else:
@@ -695,13 +705,19 @@ def test_delete(request, test_id):
     willContinue = True
     try:
         tested_file = Test_info.objects.get(id=test_id)
+        if test.status != 'finished' and test.status != 'interrupted':
+            from celery.app.control import Control
+            from MLPlatform.celery import celery_app
+            celery_control = Control(app=celery_app)
+            celery_control.revoke(test.task_id, terminate=True)
         os.remove(tested_file.tested_file.path)
         tested_file.delete()
-        {"test_id":test_id}
+        res = {"test_id":test_id}
     except:
-        res = {"errmsg":"删除测试任务失败"}
+        # res = {"errmsg":"删除测试任务失败"}
+        res = {"errmsg":traceback.format_exc()}
         willContinue = False
-    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
+    resp = JsonResponse(res)
     if willContinue:
         resp.status_code = 200
     else:
@@ -724,12 +740,11 @@ def test_change(request, test_id):
         test.description = description
         test.status = status
         if test.status != 'finished' and test.status != 'interrupted':
-            # if status == 'interrupted':
-                # from celery.app.control import Control
-                # from MLPlatform.celery import celery_app
-                # celery_control = Control(app=celery_app)
-                # celery_control.revoke(test.task_id, terminate=True)
-                #  TODO:debug
+            if status == 'interrupted':
+                from celery.app.control import Control
+                from MLPlatform.celery import celery_app
+                celery_control = Control(app=celery_app)
+                celery_control.revoke(test.task_id, terminate=True)
             test.save()
     except:
         res = {"errmsg":"修改测试文件失败"}
@@ -737,7 +752,7 @@ def test_change(request, test_id):
     
     res['description'] = description
     res['status'] = test.status
-    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
+    resp = JsonResponse(res)
     if willContinue:
         resp.status_code = 200
     else:
@@ -781,7 +796,7 @@ def service_add(request):
         except:
             res = {"errmsg":"部署失败"}
             willContinue = False
-    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
+    resp = JsonResponse(res)
     if willContinue:
         resp.status_code = 200
     else:
@@ -833,21 +848,22 @@ def service_delete(request, service_id):
     willContinue = True
     try:
         service = Service_info.objects.get(id=service_id) 
-        # tests = service.test_info_set.all()   
-        # celery_control = Control(app=celery_app)
-        # # TODO  
-        # for test in tests:
-        #     task_ID = test.task_ID
-        #     test.status = 'interrupted'
-        #     test.save()
-        #     celery_control.revoke(task_ID, terminate=True)
+        tests = service.tests.all()   
+        celery_control = Control(app=celery_app)
+        # TODO  
+        for test in tests:
+            task_ID = test.task_ID
+            if test.status == 'run':
+                celery_control.revoke(task_ID, terminate=True)
+                test.status = 'interrupted'
+                test.save()
 
         service.delete()
         res = {"id":service_id}
     except:
         res = {"errmsg":"删除部署失败"}
         willContinue = False
-    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
+    resp = JsonResponse(res)
     if willContinue:
         resp.status_code = 200
     else:
@@ -866,7 +882,7 @@ def service_info(request, service_id):
     except:
         res = {"errmsg":"读取测试信息失败，可能您输入的测试文件已被删除"}
         willContinue = False
-    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
+    resp = JsonResponse(res)
     if willContinue:
         resp.status_code = 200
     else:
@@ -896,7 +912,7 @@ def service_change(request, service_id):
         willContinue = False
     
 
-    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
+    resp = JsonResponse(res)
     if willContinue:
         resp.status_code = 200
     else:
@@ -911,7 +927,7 @@ def task_add_view(request):
     print(task_id)
     tmp = str(task_id)
     res = {"task_id": tmp}
-    resp = JsonResponse(res, json_dumps_params={'ensure_ascii':False})
+    resp = JsonResponse(res)
     return resp
 
 from celery import result

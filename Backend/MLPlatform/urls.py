@@ -23,7 +23,7 @@ urlpatterns = [
     path('ml/', include('ml.urls')),
     path('admin/', admin.site.urls),
     
-    re_path(r'media/(?P<path>.*)$',serve,{'document_root':settings.MEDIA_ROOT})
+    re_path(r'ml/media/(?P<path>.*)$',serve,{'document_root':settings.MEDIA_ROOT})
 ]
 
 

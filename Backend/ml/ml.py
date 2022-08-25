@@ -324,7 +324,7 @@ class ONNXModel(BaseModel):
                 for i in range(len(output_fields)):
                     result[output_fields[i].name] = output[i][0]
                 return {
-                    "result": [result],
+                    "result": str([result]),
                 }
             else:
                 return {}
@@ -354,7 +354,7 @@ class ONNXModel(BaseModel):
                     for i in range(x_test.shape[0]):
                         tmp_sample = {}
                         for j in range(len(output_fields)):
-                            if isinstance(output[j][i],np.ndarray):
+                            if isinstance(output[j][i],np.ndarray) or isinstance(output[j][i],np.float64):
                                 tmp_sample[output_fields[j].name] = output[j][i].tolist()
                             else:
                                 tmp_sample[output_fields[j].name] = output[j][i]
@@ -364,13 +364,13 @@ class ONNXModel(BaseModel):
                     for i in range(x_test.shape[0]):
                         tmp_sample = {}
                         for j in range(len(output_fields)):
-                            if isinstance(output[i][j],np.ndarray):
+                            if isinstance(output[i][j],np.ndarray)or isinstance(output[i][j],np.float64):
                                 tmp_sample[output_fields[j].name] = output[i][j].tolist()
                             else:
                                 tmp_sample[output_fields[j].name] = output[i][j]
                         result.append(tmp_sample)
                 return {
-                    "result": result,
+                    "result": str(result),
                 }
             else:
                 return {}
@@ -539,7 +539,7 @@ class PMMLModel(BaseModel):
                 for i in range(len(output_fields)):
                     result[output_fields[i].name] = y_pred.iat[0, i]
                 return {
-                    "result": result,
+                    "result": str(result),
                 }
 
             except Exception as e:
@@ -565,7 +565,7 @@ class PMMLModel(BaseModel):
                         tmp[output_fields[i].name] = y_pred.iat[0, i]
                     result.append(tmp)
                 return {
-                    "result": result,
+                    "result": str(result),
                 }
 
             except Exception as e:
@@ -805,7 +805,7 @@ class KerasModel(BaseModel):
                 })
 
             return {
-                "result": result
+                "result": str(result)
             }
 
         except Exception as e:
@@ -831,11 +831,14 @@ class KerasModel(BaseModel):
                     name = x.name
                     if hasattr(self.model, 'output_names'):
                         name = self.model.output_names[idx]
-                    tmp[name] = y_pred.iat[i, idx]
+                    if isinstance(y_pred.iat[i, idx],np.ndarray) or isinstance(y_pred.iat[i, idx],np.float64):
+                        tmp[name] = y_pred.iat[i, idx].tolist()
+                    else:        
+                        tmp[name] = y_pred.iat[i, idx]
                 result.append(tmp)
 
             return {
-                "result": result
+                "result": str(result)
             }
 
         except Exception as e:

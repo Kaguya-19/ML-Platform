@@ -1,8 +1,7 @@
 <template>
   <page-header-wrapper title="Test Detail">
-    <!-- 选择菜单：模型概述/测试 -->
-    <!-- 模型概述 -->
-    <template>
+    <a-spin :spinning="spinning">
+      <template>
       <!-- 基本信息 -->
       <a-card :bordered="false">
         <template #extra><a :href="&quot;/deploy/deploy-test?id=&quot;+service_id">Service</a></template>
@@ -45,7 +44,8 @@
 
       </a-card>
       <!-- 输入/目标变量 -->
-    </template>
+      </template>
+    </a-spin>
   </page-header-wrapper>
 </template>
 
@@ -93,8 +93,8 @@ export default {
             this.testUrl = res.data.tested_file
             if ('result' in res.data) {
               this.testRes = JSON.stringify(res.data.result)
-              this.spinning = false
             }
+            this.spinning = false
             }).catch(err => {
             console.log(err)
             try {
@@ -112,7 +112,7 @@ export default {
         okType: 'danger',
         onOk () {
           const formData = new FormData()
-          formData.append('status', 'interrupted')
+          formData.append('status', 'interrputed')
           axios({
             url: `/ml/test/${thi.test_id}`,
             method: 'put',

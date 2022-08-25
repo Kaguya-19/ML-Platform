@@ -29,9 +29,9 @@ def new_task_thread(test_file_id , service_id):
     test_task.result = res
     test_task.save()
     tested_model_type = test_task.mod.model_type
-    if tested_model_type == 'keras':
-        model_path = makeKeraspath(model_path)
     tested_model_path = test_task.mod.file.path
+    if tested_model_type == 'keras':
+        tested_model_path = makeKeraspath(tested_model_path)
     service = Service_info.objects.get(id=service_id)
     print("In Thread")
     try:
@@ -109,37 +109,20 @@ def new_task_thread(test_file_id , service_id):
                                             continue
                                         x_test.append(number_tmp_data)
                                 zfile.close()
-        elif '.jpg' in test_file.name:
-            content = cv2.imread(test_file.path)
-            image = defualt_process(content)
-            x_test.append(image[0])
-            # cv2.imshow('image', image)
-        elif '.txt' in test_file.name:
-            with open(test_file.path, mode='r', encoding='utf-8') as f:  # 打开文件，将其值赋予file_to_read
-                input_file_string = f.read()
-                input_file_list = input_file_string.split('\n')
-                # 发现有时候最后会多一行，去掉
-                if input_file_list[-1] == "":
-                    input_file_list.pop()
-                for line in input_file_list:
-                    # 使用zip将两组数据打包成字典
-                    tmp_data = re.split(r"\s|,|;",line)
-                    number_tmp_data = [float(x) for x in tmp_data]
-                    if len(number_tmp_data) != np.prod(input_shape):
-                        continue
-                    x_test.append(number_tmp_data)
-                    
-                
-                # zfile.close()
-        elif '.csv' in test_file.name:
-            with open(test_file.path, mode='r', encoding='utf-8') as f:
-                if service.func_str != '': 
-                    preprocess_data.input = f
-                    preprocess_data.result = {}
-                    exec(func_str)
-                    # preprocessed_res = preprocess_result['result']
-                    x_test.append(preprocess_data.result)
-                else:
+        elif service.func_str != '' and not ('.zip' in test_file.name):
+            preprocess_data.input = test_file.file
+            preprocess_data.result = {}
+            exec(func_str)
+            # preprocessed_res = preprocess_result['result']
+            x_test.append(preprocess_data.result)
+        else:
+            if '.jpg' in test_file.name:
+                content = cv2.imread(test_file.path)
+                image = defualt_process(content)
+                x_test.append(image[0])
+                # cv2.imshow('image', image)
+            elif '.txt' in test_file.name:
+                with open(test_file.path, mode='r', encoding='utf-8') as f:  # 打开文件，将其值赋予file_to_read
                     input_file_string = f.read()
                     input_file_list = input_file_string.split('\n')
                     # 发现有时候最后会多一行，去掉
@@ -147,20 +130,46 @@ def new_task_thread(test_file_id , service_id):
                         input_file_list.pop()
                     for line in input_file_list:
                         # 使用zip将两组数据打包成字典
-                        tmp_data = line.split(',')
+                        tmp_data = re.split(r"\s|,|;",line)
                         number_tmp_data = [float(x) for x in tmp_data]
                         if len(number_tmp_data) != np.prod(input_shape):
                             continue
                         x_test.append(number_tmp_data)
-        else:
-            res = {"errmsg":"不支持处理该类型文件"}
-            test_task.result = res
-            test_task.status = 'interrupted'
-            test_task.save()
-            return
+
+
+                    # zfile.close()
+            elif '.csv' in test_file.name:
+                with open(test_file.path, mode='r', encoding='utf-8') as f:
+                    if service.func_str != '': 
+                        preprocess_data.input = f
+                        preprocess_data.result = {}
+                        exec(func_str)
+                        # preprocessed_res = preprocess_result['result']
+                        x_test.append(preprocess_data.result)
+                    else:
+                        input_file_string = f.read()
+                        input_file_list = input_file_string.split('\n')
+                        # 发现有时候最后会多一行，去掉
+                        if input_file_list[-1] == "":
+                            input_file_list.pop()
+                        for line in input_file_list:
+                            # 使用zip将两组数据打包成字典
+                            tmp_data = line.split(',')
+                            number_tmp_data = [float(x) for x in tmp_data]
+                            if len(number_tmp_data) != np.prod(input_shape):
+                                continue
+                            x_test.append(number_tmp_data)
+            else:
+                res = {"errmsg":"不支持处理该类型文件"}
+                test_task.result = res
+                test_task.status = 'interrupted'
+                test_task.save()
+                return
         x_test = np.array(x_test).astype(np.float32)
         print(x_test)
         res = batch_predict(path = tested_model_path, type = tested_model_type,x_test = x_test)
+        test_task.result = res
+        test_task.save()
     except:
         import traceback
         res = {"errmsg":traceback.format_exc()}

@@ -77,12 +77,6 @@
         <a-dropdown v-if="selectedRowKeys.length > 0">
           <template #overlay>
             <a-menu>
-              // <a-menu-item @click="deploys">
-              //   Run
-              // </a-menu-item>
-              // <a-menu-item @click="pauses">
-              //   Pause
-              // </a-menu-item>
               <a-menu-item @click="stops">
                 Stop
               </a-menu-item>

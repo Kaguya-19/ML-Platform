@@ -11,13 +11,15 @@ import numpy as np
 from .pre_process_example import defualt_process
 from django.utils import timezone
 from .ml import batch_predict,quick_predict
+from threading import local
+import re
+
+preprocess_data=local()
 
 @shared_task
 def new_task_thread(test_file_id , service_id):
-    print('enter start_test')
     test_task =  Test_info.objects.get(id=test_file_id)
     test_file = test_task.tested_file
-    # test_task.task_ID = current_task.request.id
     res = {}
     test_task.result = res
     test_task.save()
@@ -31,7 +33,8 @@ def new_task_thread(test_file_id , service_id):
             input_shape = len(input_info)
         elif tested_model_type == 'onnx':
             input_shape = input_info[0]['shape']
-            input_shape = input_shape[1:]
+            if input_shape[0] == "batch_size":
+                input_shape = input_shape[1:]
         elif tested_model_type == 'keras':
             input_shape = input_info[0]['shape']
             input_shape = input_shape[1:]
@@ -58,13 +61,8 @@ def new_task_thread(test_file_id , service_id):
                                 content = image_file.read()  # 一次性读入整张图片信息
                                 image = np.asarray(bytearray(content), dtype='uint8')
                                 image = cv2.imdecode(image, cv2.IMREAD_COLOR)
-                                x_test.append(defualt_process(image))
-                                if image.shape != tuple(input_shape):
-                                    res = {"errmsg":"输入图片不适配此模型"}
-                                    test_task.result = res
-                                    test_task.status = 'interrupted'
-                                    test_task.save()
-                                    return
+                                image = defualt_process(image)
+                                x_test.append(image[0])
                                 # cv2.imshow('image', image)
                         elif '.txt' in name:
                             with zfile.open(name, 'r') as file_to_read:  # 打开文件，将其值赋予file_to_read
@@ -73,7 +71,7 @@ def new_task_thread(test_file_id , service_id):
                                     if not lines:  # 若该行为空
                                         break  # 喀嚓
                                     else:
-                                        this_lines = lines.split()
+                                        this_lines = re.split(r"\s|,|;",lines)
                                         number_this_lines = [float(x) for x in this_lines]
                                         if len(number_this_lines) != np.prod(input_shape):
                                             res = {"errmsg":"输入的文本行数据量不适配此模型"}
@@ -82,7 +80,50 @@ def new_task_thread(test_file_id , service_id):
                                             test_task.save()
                                             return
                                         x_test.append(list(np.array(number_this_lines).reshape(tuple(input_shape))))
-                zfile.close()
+                        elif '.csv' in test_file.name:
+                            with open(test_file.path, mode='r', encoding='utf-8') as f:
+                                if service.func_str != '': 
+                                    preprocess_data.input = f
+                                    preprocess_data.result = {}
+                                    exec(func_str)
+                                    # preprocessed_res = preprocess_result['result']
+                                    x_test.append(preprocess_data.result)
+                                else:
+                                    input_file_string = f.read()
+                                    input_file_list = input_file_string.split('\n')
+                                    # 发现有时候最后会多一行，去掉
+                                    if input_file_list[-1] == "":
+                                        input_file_list.pop()
+                                    for line in input_file_list:
+                                        # 使用zip将两组数据打包成字典
+                                        tmp_data = line.split(',')
+                                        number_tmp_data = [float(x) for x in tmp_data]
+                                        if len(number_tmp_data) != np.prod(input_shape):
+                                            continue
+                                        x_test.append(number_tmp_data)
+                                zfile.close()
+        elif '.jpg' in test_file.name:
+            content = cv2.imread(test_file.path)
+            image = defualt_process(content)
+            x_test.append(image[0])
+            # cv2.imshow('image', image)
+        elif '.txt' in test_file.name:
+            with open(test_file.path, mode='r', encoding='utf-8') as f:  # 打开文件，将其值赋予file_to_read
+                input_file_string = f.read()
+                input_file_list = input_file_string.split('\n')
+                # 发现有时候最后会多一行，去掉
+                if input_file_list[-1] == "":
+                    input_file_list.pop()
+                for line in input_file_list:
+                    # 使用zip将两组数据打包成字典
+                    tmp_data = re.split(r"\s|,|;",line)
+                    number_tmp_data = [float(x) for x in tmp_data]
+                    if len(number_tmp_data) != np.prod(input_shape):
+                        continue
+                    x_test.append(number_tmp_data)
+                    
+                
+                # zfile.close()
         elif '.csv' in test_file.name:
             with open(test_file.path, mode='r', encoding='utf-8') as f:
                 if service.func_str != '': 

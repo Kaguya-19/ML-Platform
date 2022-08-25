@@ -273,26 +273,33 @@ def fast_test(request,id,type='model'):
                 if keyi in key:
                     value = test_data[key]
                     if isinstance(value,str) and value.startswith('data:'):# base 64                        
-                        file = base64.b64decode(value)
-                        if type == 'service' and service.func_str != '':
-                            preprocess_data.input = file
-                            preprocess_data.result = {}
-                            func_str = service.func_str
-                            exec(func_str)
-                            # preprocessed_res = preprocess_result['result']
-                            x_test.append(preprocess_data.result)
+                        try:
+                            file = base64.b64decode(value.split(',')[1])
+                            isbase64 = True
+                        except:
+                            isbase64 = False
+                        if isbase64:
+                            if type == 'service' and service.func_str != '':
+                                preprocess_data.input = file
+                                preprocess_data.result = {}
+                                func_str = service.func_str
+                                exec(func_str)
+                                # preprocessed_res = preprocess_result['result']
+                                x_test.append(preprocess_data.result)
+                            else:
+                                if value.startswith('data:image'):
+                                    x_test = cv2.imdecode(np.frombuffer(file,np.uint8), cv2.IMREAD_COLOR)
+                                    x_test = defualt_process(x_test)
+                                    #process img
+                                    break
+                                elif value.startswith('data:application/octet-stream'):
+                                    while True:
+                                        txtstr = file.encode('utf-8')
+                                        import re
+                                        txtlist = re.split(r'\s|,',txtstr)
+                                        x_test.append(txtlist)
                         else:
-                            if value.startswith('data:image'):
-                                x_test = cv2.imdecode(np.frombuffer(file,np.uint8), cv2.IMREAD_COLOR)
-                                x_test = defualt_process(x_test)
-                                #process img
-                                break
-                            elif value.startswith('data:application/octet-stream'):
-                                while True:
-                                    txtstr = file.encode('utf-8')
-                                    import re
-                                    txtlist = re.split(r'\s|,',txtstr)
-                                    x_test.append(txtlist)
+                            x_test.append(value)
                     elif isinstance(value,list):
                         x_test += value
                     else:
@@ -717,11 +724,12 @@ def test_change(request, test_id):
         test.description = description
         test.status = status
         if test.status != 'finished' and test.status != 'interrupted':
-            if status == 'interrupted':
-                from celery.app.control import Control
-                from MLPlatform.celery import celery_app
-                celery_control = Control(app=celery_app)
-                celery_control.revoke(test.task_id, terminate=True)
+            # if status == 'interrupted':
+                # from celery.app.control import Control
+                # from MLPlatform.celery import celery_app
+                # celery_control = Control(app=celery_app)
+                # celery_control.revoke(test.task_id, terminate=True)
+                #  TODO:debug
             test.save()
     except:
         res = {"errmsg":"修改测试文件失败"}
@@ -825,14 +833,14 @@ def service_delete(request, service_id):
     willContinue = True
     try:
         service = Service_info.objects.get(id=service_id) 
-        tests = service.test_info_set.all()   
-        celery_control = Control(app=celery_app)
-        # TODO  
-        for test in tests:
-            task_ID = test.task_ID
-            test.status = 'interrupted'
-            test.save()
-            celery_control.revoke(task_ID, terminate=True)
+        # tests = service.test_info_set.all()   
+        # celery_control = Control(app=celery_app)
+        # # TODO  
+        # for test in tests:
+        #     task_ID = test.task_ID
+        #     test.status = 'interrupted'
+        #     test.save()
+        #     celery_control.revoke(task_ID, terminate=True)
 
         service.delete()
         res = {"id":service_id}

@@ -38,7 +38,7 @@ services:
       uwsgi -d --ini /code/Backend/config/docker_test.ini &&
       cd /code/Backend && 
       celery -A MLPlatform worker -l INFO" 
-      # TODO: daemon
+      # 前台防止docker退出
   nginx:
     container_name: nginx
     restart: always

@@ -21,7 +21,7 @@ import './utils/filter' // global filter
 import './global.less' // global style
 import VueClipboard from 'vue-clipboard2'
 // 构建时注释以下一行代码
-import axios from 'axios'
+// import axios from 'axios'
 
 Vue.config.productionTip = false
 
@@ -34,7 +34,7 @@ Vue.component('page-container', PageHeaderWrapper)
 Vue.component('page-header-wrapper', PageHeaderWrapper)
 
 // 构建时注释以下一行代码
-axios.defaults.baseURL = 'http://localhost:8001'
+// axios.defaults.baseURL = 'http://localhost:8001'
 
 // axios.interceptors.request.use((config) => {
 //   config.headers['X-Requested-With'] = 'XMLHttpRequest'
